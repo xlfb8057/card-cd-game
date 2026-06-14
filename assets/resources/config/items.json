@@ -1,0 +1,197 @@
+{
+  "items": [
+    {
+      "id": "pencil_sharpener",
+      "name": "卷笔刀",
+      "rarity": "bronze",
+      "baseCD": 2.0,
+      "price": 5,
+      "tags": ["damage", "tool"],
+      "effects": [
+        { "type": "damage", "value": 15, "target": "enemy" }
+      ],
+      "heroAffinity": "stelle",
+      "maxStar": 3
+    },
+    {
+      "id": "spring_fist",
+      "name": "弹簧拳",
+      "rarity": "bronze",
+      "baseCD": 3.0,
+      "price": 5,
+      "tags": ["damage", "tool"],
+      "effects": [
+        { "type": "damage", "value": 25, "target": "enemy" },
+        { "type": "haste", "value": 1.0, "target": "adjacent", "trigger": "onTrigger" }
+      ],
+      "heroAffinity": "stelle",
+      "maxStar": 3
+    },
+    {
+      "id": "serpent_fang",
+      "name": "蛇怪之牙",
+      "rarity": "bronze",
+      "baseCD": 4.0,
+      "price": 5,
+      "tags": ["dot", "poison"],
+      "effects": [
+        { "type": "dot", "value": 8, "target": "enemy", "dotType": "poison" }
+      ],
+      "heroAffinity": "mak",
+      "maxStar": 3
+    },
+    {
+      "id": "hot_sauce",
+      "name": "辣酱",
+      "rarity": "bronze",
+      "baseCD": 3.5,
+      "price": 4,
+      "tags": ["dot", "burn", "food"],
+      "effects": [
+        { "type": "dot", "value": 6, "target": "enemy", "dotType": "burn" }
+      ],
+      "heroAffinity": "jules",
+      "maxStar": 3
+    },
+    {
+      "id": "spike_trap",
+      "name": "地刺陷阱",
+      "rarity": "bronze",
+      "baseCD": 5.0,
+      "price": 4,
+      "tags": ["dot", "damage"],
+      "effects": [
+        { "type": "dot", "value": 5, "target": "enemy", "dotType": "poison" },
+        { "type": "damage", "value": 10, "target": "enemy" }
+      ],
+      "maxStar": 3
+    },
+    {
+      "id": "glasses",
+      "name": "眼镜",
+      "rarity": "bronze",
+      "baseCD": 4.0,
+      "price": 4,
+      "tags": ["shield"],
+      "effects": [
+        { "type": "shield", "value": 20, "target": "self" }
+      ],
+      "maxStar": 3
+    },
+    {
+      "id": "soothing_heal",
+      "name": "抚慰疗愈",
+      "rarity": "bronze",
+      "baseCD": 5.0,
+      "price": 5,
+      "tags": ["heal"],
+      "effects": [
+        { "type": "heal", "value": 15, "target": "self" }
+      ],
+      "maxStar": 3
+    },
+    {
+      "id": "lighter",
+      "name": "打火机",
+      "rarity": "bronze",
+      "baseCD": 4.0,
+      "price": 4,
+      "tags": ["haste", "tool"],
+      "effects": [
+        { "type": "haste", "value": 1.5, "target": "adjacent", "trigger": "onTrigger" }
+      ],
+      "heroAffinity": "stelle",
+      "maxStar": 3
+    },
+    {
+      "id": "cotton_engine",
+      "name": "棉花糖引擎",
+      "rarity": "bronze",
+      "baseCD": 6.0,
+      "price": 6,
+      "tags": ["haste", "tool"],
+      "effects": [
+        { "type": "haste", "value": 1.0, "target": "all_tools", "trigger": "onTrigger" }
+      ],
+      "heroAffinity": "stelle",
+      "maxStar": 3
+    },
+    {
+      "id": "paper_plane",
+      "name": "纸飞机",
+      "rarity": "bronze",
+      "baseCD": 3.0,
+      "price": 4,
+      "tags": ["haste", "tool"],
+      "effects": [
+        { "type": "haste", "value": 0.8, "target": "adjacent", "trigger": "onTrigger" }
+      ],
+      "heroAffinity": "stelle",
+      "maxStar": 3
+    },
+    {
+      "id": "caviar",
+      "name": "鱼子酱",
+      "rarity": "silver",
+      "baseCD": 4.0,
+      "price": 8,
+      "tags": ["damage", "crit", "food"],
+      "effects": [
+        { "type": "crit", "value": 2.0, "target": "enemy" },
+        { "type": "damage", "value": 20, "target": "enemy" }
+      ],
+      "heroAffinity": "jules",
+      "maxStar": 3
+    },
+    {
+      "id": "barrel",
+      "name": "木桶",
+      "rarity": "silver",
+      "baseCD": 5.0,
+      "price": 7,
+      "tags": ["damage", "scaling"],
+      "effects": [
+        { "type": "damage", "value": 15, "target": "enemy" }
+      ],
+      "maxStar": 3
+    },
+    {
+      "id": "aurora_dome",
+      "name": "极光穹顶",
+      "rarity": "silver",
+      "baseCD": 6.0,
+      "price": 9,
+      "tags": ["control", "freeze"],
+      "effects": [
+        { "type": "freeze", "value": 2.0, "target": "enemy" }
+      ],
+      "maxStar": 3
+    },
+    {
+      "id": "precision_caliper",
+      "name": "精密卡尺",
+      "rarity": "silver",
+      "baseCD": 3.5,
+      "price": 8,
+      "tags": ["tool", "haste"],
+      "effects": [
+        { "type": "haste", "value": 2.0, "target": "all_tools", "trigger": "onTrigger" }
+      ],
+      "heroAffinity": "stelle",
+      "maxStar": 3
+    },
+    {
+      "id": "chef_hat",
+      "name": "厨师帽",
+      "rarity": "silver",
+      "baseCD": 4.0,
+      "price": 8,
+      "tags": ["food", "heal"],
+      "effects": [
+        { "type": "heal", "value": 20, "target": "self" }
+      ],
+      "heroAffinity": "jules",
+      "maxStar": 3
+    }
+  ]
+}

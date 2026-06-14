@@ -1,0 +1,45 @@
+{
+  "enemies": [
+    {
+      "id": "slime",
+      "name": "史莱姆",
+      "hp": 100,
+      "attackCD": 2.0,
+      "damage": 15,
+      "reward": { "gold": 5, "items": ["bronze_random"] }
+    },
+    {
+      "id": "goblin",
+      "name": "哥布林",
+      "hp": 150,
+      "attackCD": 1.8,
+      "damage": 18,
+      "reward": { "gold": 6, "items": ["bronze_random"] }
+    },
+    {
+      "id": "shadow_wolf",
+      "name": "暗影狼",
+      "hp": 200,
+      "attackCD": 1.5,
+      "damage": 22,
+      "reward": { "gold": 8, "items": ["bronze_random"] }
+    },
+    {
+      "id": "mage",
+      "name": "法师",
+      "hp": 120,
+      "attackCD": 2.5,
+      "damage": 25,
+      "reward": { "gold": 7, "items": ["silver_random"] }
+    },
+    {
+      "id": "boss_golem",
+      "name": "岩石巨像",
+      "hp": 500,
+      "attackCD": 1.5,
+      "damage": 30,
+      "timeLimit": 60,
+      "reward": { "gold": 20, "items": ["legendary_random"] }
+    }
+  ]
+}

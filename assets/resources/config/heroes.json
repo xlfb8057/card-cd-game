@@ -1,0 +1,50 @@
+{
+  "heroes": [
+    {
+      "id": "jules",
+      "name": "朱尔斯",
+      "maxHP": 100,
+      "passive": {
+        "type": "food_boost",
+        "value": 0.25,
+        "overflowToShield": 0.5
+      },
+      "activeSkill": {
+        "name": "盛宴",
+        "effect": "trigger_all_food",
+        "duration": 10,
+        "usesPerBattle": 1
+      }
+    },
+    {
+      "id": "mak",
+      "name": "马克",
+      "maxHP": 100,
+      "passive": {
+        "type": "dot_boost",
+        "value": 0.3
+      },
+      "activeSkill": {
+        "name": "肾上腺素",
+        "effect": "adrenaline",
+        "duration": 15,
+        "usesPerBattle": 1
+      }
+    },
+    {
+      "id": "stelle",
+      "name": "斯黛拉",
+      "maxHP": 100,
+      "passive": {
+        "type": "tool_cd",
+        "value": 0.2
+      },
+      "activeSkill": {
+        "name": "过载运转",
+        "effect": "overload",
+        "duration": 8,
+        "usesPerBattle": 1
+      }
+    }
+  ]
+}
