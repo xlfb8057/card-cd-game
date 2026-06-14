@@ -2,6 +2,8 @@ import { _decorator, Component, JsonAsset, Label, resources } from 'cc';
 import { GameApp } from './core/GameApp';
 import { getGameApp, setGameApp } from './core/GameAppHolder';
 import { IConfigLoader } from './core/ConfigTable';
+import { initWeChatSession } from './platform/WeChatBridge';
+import { isWxMiniGame } from './platform/WxRuntime';
 
 const { ccclass, property } = _decorator;
 
@@ -33,6 +35,10 @@ export class GameBootstrap extends Component {
   }
 
   async onLoad() {
+    if (isWxMiniGame()) {
+      await initWeChatSession();
+    }
+
     const existing = getGameApp();
     if (existing) {
       this._app = existing;
@@ -40,7 +46,8 @@ export class GameBootstrap extends Component {
       return;
     }
 
-    this._app = new GameApp(new CocosResourcesConfigLoader(), true);
+    // 微信/浏览器用 StorageAPI；仅 Node 测试才用内存存储
+    this._app = new GameApp(new CocosResourcesConfigLoader(), false);
     await this._app.initialize();
     this._app.selectHero('stelle');
     this._app.startNewGame();

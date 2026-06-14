@@ -46,7 +46,11 @@ export class LocalStorageAPI implements IStorageAPI {
 /** 微信小游戏存储实现 */
 export class WxStorageAPI implements IStorageAPI {
   setItem(key: string, value: string): void {
-    getWxStorage()?.setStorageSync(key, value);
+    try {
+      getWxStorage()?.setStorageSync(key, value);
+    } catch {
+      // wx storage full or unavailable
+    }
   }
 
   getItem(key: string): string | null {
@@ -54,7 +58,12 @@ export class WxStorageAPI implements IStorageAPI {
     if (!wx) {
       return null;
     }
-    return wx.getStorageSync(key) ?? null;
+    try {
+      const v = wx.getStorageSync(key);
+      return v === '' || v === undefined || v === null ? null : String(v);
+    } catch {
+      return null;
+    }
   }
 
   removeItem(key: string): void {

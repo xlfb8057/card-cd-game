@@ -1,45 +1,58 @@
 # card-cd-game
 
-《大巴扎：像素乱斗》MVP — Cocos Creator 3.8 竖屏白盒原型。
+《大巴扎：像素乱斗》MVP — Cocos Creator 3.8 竖屏白盒原型（微信小游戏目标平台）。
 
 ## 技术栈
 
 - Cocos Creator 3.8.8
 - TypeScript
-- 目标平台：微信小游戏（竖屏）
+- 微信小游戏（竖屏 720×1280）
 
 ## 项目结构
 
 ```
 assets/
-├── scene/           # Battle.scene / shop.scene
-├── scripts/         # 游戏逻辑 + Cocos 视图层
-│   ├── core/        # GameApp、配置表、快照
-│   ├── systems/     # 战斗、商店、经济、救场
-│   └── ui/          # BattleSceneView、ShopSceneView
-└── resources/config/  # items / heroes / enemies JSON
+├── scene/              Battle.scene / shop.scene
+├── scripts/
+│   ├── core/           GameApp、配置、快照
+│   ├── systems/        战斗、商店、经济、救场
+│   ├── ui/             BattleSceneView、ShopSceneView
+│   └── platform/       微信适配（WeChatBridge、SafeArea、分包）
+├── resources/config/   items / heroes / enemies
+└── subpackages/
+    └── later-assets/   后期资源分包（音效/特效占位）
+build-templates/wechatgame/   微信 game.json / project.config.json 模板
+tools/check-wechat-bundle-size.mjs   首包大小检查
+Doc-BUILD/                    构建检查清单
 ```
 
-## 打开方式
+## 本地预览
 
-1. Cocos Dashboard → 打开本项目目录
+1. Cocos Dashboard → 打开本项目
 2. 启动场景：`assets/scene/Battle.scene`
-3. 构建设置中需包含 `Battle` 与 `shop` 两个场景
+3. 点击 **预览 ▶**
 
-## 设计分辨率
+## 微信小游戏构建（Prompt 7）
 
-竖屏 **720 × 1280**，适配宽度（Fit Width）。
+详细步骤见：**[Doc-BUILD/微信小游戏构建与发布检查清单.md](Doc-BUILD/微信小游戏构建与发布检查清单.md)**
 
-## 场景流程
+### 快速步骤
 
+1. **项目 → 构建发布** → 平台选 **微信小游戏**
+2. **AppID** 填入你的小程序 ID
+3. **Orientation** 选 **Portrait 竖屏**
+4. 构建 → 产物在 `build/wechatgame/`
+5. 用 **微信开发者工具** 导入 `build/wechatgame`
+6. 检查包体：
+
+```bash
+npm run check:wechat-size
 ```
-Battle（战斗） → 胜利 → shop（商店） → 开始战斗 → Battle（下一回合）
-失败 → 重试（回退快照） / 胜利 → 进入商店
-```
 
-## 开发说明
+### Canvas 安全区（编辑器操作一次）
 
-- 逻辑层与 Cocos 视图层分离：`GameApp` 不依赖 `cc` 模块
-- 跨场景数据：`GameAppHolder` 保留进度
-- 战斗视图：`BattleSceneView.ts`
-- 商店视图：`ShopSceneView.ts`
+在 Battle / shop 场景的 **Canvas** 上添加 **SafeAreaAdapter**，将 **HUD** 节点拖到 **Hud Root**。
+
+## 仓库
+
+https://github.com/xlfb8057/card-cd-game

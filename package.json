@@ -5,5 +5,8 @@
   "uuid": "cdb57428-d19e-4a74-9a4f-df8c8e609922",
   "creator": {
     "version": "3.8.8"
+  },
+  "scripts": {
+    "check:wechat-size": "node tools/check-wechat-bundle-size.mjs"
   }
 }

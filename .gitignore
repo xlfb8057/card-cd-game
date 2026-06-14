@@ -9,6 +9,7 @@ build/
 profiles/
 native
 .creator/
+build/
 
 #//////////////////////////
 # NPM

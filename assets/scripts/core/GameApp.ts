@@ -22,6 +22,7 @@ import { RescuePanel } from '../ui/RescuePanel';
 import { createStorageAPI, MemoryStorageAPI } from '../utils/StorageAPI';
 import { MAX_ROUND } from '../config/RoundConfig';
 import { resetInstanceIdCounter } from '../models/ItemInstance';
+import { preloadLaterAssetsIfNeeded } from '../platform/SubpackageLoader';
 
 export type GameSceneType = 'menu' | 'battle' | 'shop' | 'gameover';
 
@@ -224,6 +225,7 @@ export class GameApp implements IGameApp {
     this._shopScene.onEnterBattle();
     this._session.saveToDisk('battle');
     this._scene = 'battle';
+    preloadLaterAssetsIfNeeded(nextRound);
     this._battleScene.startRound(nextRound);
   }
 
