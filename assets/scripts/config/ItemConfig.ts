@@ -61,9 +61,18 @@ export interface IItemConfigTable {
  */
 export class ItemConfigTable implements IItemConfigTable {
   private readonly _map: Map<string, IItemConfig>;
+  private readonly _tagIndex: Map<string, IItemConfig[]> = new Map();
 
   constructor(items: IItemConfig[]) {
     this._map = new Map(items.map((item) => [item.id, item]));
+
+    for (const item of items) {
+      for (const tag of item.tags) {
+        const list = this._tagIndex.get(tag) ?? [];
+        list.push(item);
+        this._tagIndex.set(tag, list);
+      }
+    }
   }
 
   get(id: string): IItemConfig | undefined {
@@ -75,6 +84,6 @@ export class ItemConfigTable implements IItemConfigTable {
   }
 
   getAllByTag(tag: string): IItemConfig[] {
-    return this.getAll().filter((item) => item.tags.includes(tag));
+    return [...(this._tagIndex.get(tag) ?? [])];
   }
 }

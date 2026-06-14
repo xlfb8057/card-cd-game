@@ -311,10 +311,11 @@ export class BattleSystem implements IBattleSystem {
   /** CD 系统 tick + 触发就绪装备 */
   private _tickItemCDs(dt: number): void {
     const { readyItems } = this._cdSystem.update(dt);
-    const alsoReady = this._items.filter(
-      (item) => item.canTrigger() && !readyItems.includes(item),
+    const readySet = new Set(readyItems);
+    const alreadyReadyItems = this._items.filter(
+      (item) => item.canTrigger() && !readySet.has(item),
     );
-    const toTrigger = [...readyItems, ...alsoReady];
+    const toTrigger = [...readyItems, ...alreadyReadyItems];
     toTrigger.sort((a, b) => a.position - b.position);
 
     for (const item of toTrigger) {

@@ -84,7 +84,11 @@ export class EventBus implements IEventBus {
     const toRemove: EventCallback[] = [];
 
     for (const entry of entries) {
-      entry.callback(payload);
+      try {
+        entry.callback(payload);
+      } catch (err) {
+        console.error(`[EventBus] listener failed for "${event}"`, err);
+      }
       if (entry.once) {
         toRemove.push(entry.callback);
       }

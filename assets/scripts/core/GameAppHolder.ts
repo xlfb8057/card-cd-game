@@ -1,7 +1,7 @@
 /**
  * 跨场景保留 GameApp 实例（Battle ↔ Shop 切换时不丢失进度）
  */
-import { GameApp } from './core/GameApp';
+import { GameApp } from './GameApp';
 
 let _app: GameApp | null = null;
 

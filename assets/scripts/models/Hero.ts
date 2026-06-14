@@ -52,9 +52,9 @@ export class Hero implements IHero {
   }
 
   takeDamage(amount: number): number {
-    const dealt = Math.min(amount, Math.max(0, this.currentHP - 1));
+    const before = this.currentHP;
     this.currentHP = Math.max(1, this.currentHP - amount);
-    return dealt;
+    return before - this.currentHP;
   }
 
   heal(amount: number): void {

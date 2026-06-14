@@ -46,15 +46,20 @@ export class CDSystem implements ICDSystem {
    */
   update(dt: number): ICDTickResult {
     const readyItems: IItemInstance[] = [];
+    const toDelete: IItemInstance[] = [];
 
-    for (const item of this._activeItems) {
+    for (const item of Array.from(this._activeItems)) {
       item.currentCD -= dt;
 
       if (item.currentCD <= 0) {
         item.currentCD = 0;
-        this._activeItems.delete(item);
+        toDelete.push(item);
         readyItems.push(item);
       }
+    }
+
+    for (const item of toDelete) {
+      this._activeItems.delete(item);
     }
 
     return { readyItems };
