@@ -63,7 +63,7 @@ export class ItemSlotController implements IItemSlotController {
     }
 
     const config = this._configTable.getItem(this._item.configId);
-    const rarity = config?.rarity ?? 'bronze';
+    const rarity = config?.rarity ?? 'common';
     const cd = this._item.currentCD;
     const isMaxHaste = cd <= HASTE_PULSE_THRESHOLD && cd > CD_MIN;
     const atFloor = cd <= CD_MIN + 0.01;

@@ -11,6 +11,7 @@ import { EconomySystem } from '../systems/EconomySystem';
 import { InventorySystem } from '../systems/InventorySystem';
 import { ShopSystem } from '../systems/ShopSystem';
 import { BattleSystem } from '../systems/BattleSystem';
+import { ModSystem } from '../systems/ModSystem';
 import { HeroSystem } from '../systems/HeroSystem';
 import { RescueSystem } from '../systems/RescueSystem';
 import { BattleRescueContext } from '../systems/BattleRescueContext';
@@ -23,6 +24,7 @@ import { createStorageAPI, MemoryStorageAPI } from '../utils/StorageAPI';
 import { MAX_ROUND } from '../config/RoundConfig';
 import { resetInstanceIdCounter } from '../models/ItemInstance';
 import { preloadLaterAssetsIfNeeded } from '../platform/SubpackageLoader';
+import { IItemDisplayDeps } from '../ui/item-display/ItemDisplayContextFactory';
 
 export type GameSceneType = 'menu' | 'battle' | 'shop' | 'gameover';
 
@@ -43,6 +45,7 @@ export interface IGameApp {
   getState(): IStateManager;
   getEconomy(): EconomySystem;
   getInventory(): InventorySystem;
+  getItemDisplayDeps(enemyPoisonStacks?: number): IItemDisplayDeps;
 }
 
 /**
@@ -58,6 +61,7 @@ export class GameApp implements IGameApp {
   private _inventory!: InventorySystem;
   private _shop!: ShopSystem;
   private _battle!: BattleSystem;
+  private _modSystem!: ModSystem;
   private _heroSystem!: HeroSystem;
   private _rescue!: RescueSystem;
   private _rescueCtx!: BattleRescueContext;
@@ -91,10 +95,12 @@ export class GameApp implements IGameApp {
       this._inventory,
     );
     this._heroSystem = new HeroSystem(this._eventBus, this._configTable);
+    this._modSystem = new ModSystem(this._eventBus, this._configTable);
     this._battle = new BattleSystem({
       eventBus: this._eventBus,
       configTable: this._configTable,
       heroSystem: this._heroSystem,
+      modSystem: this._modSystem,
     });
     this._rescueCtx = new BattleRescueContext(this._battle);
     this._rescue = new RescueSystem(this._eventBus, this._rescueCtx);
@@ -120,6 +126,7 @@ export class GameApp implements IGameApp {
       this._shop,
       this._inventory,
       this._configTable,
+      this._modSystem,
     );
 
     this._battleScene = new BattleSceneController(
@@ -255,5 +262,16 @@ export class GameApp implements IGameApp {
 
   getInventory(): InventorySystem {
     return this._inventory;
+  }
+
+  getItemDisplayDeps(enemyPoisonStacks = 0): IItemDisplayDeps {
+    return {
+      configTable: this._configTable,
+      heroSystem: this._heroSystem,
+      modSystem: this._modSystem,
+      inventory: this._inventory,
+      currentHeroId: this._heroId,
+      enemyPoisonStacks,
+    };
   }
 }

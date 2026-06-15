@@ -13,11 +13,11 @@ export const BASE_WAGE = 5;
 /** 出售价格比例 */
 export const SELL_RATIO = 0.7;
 
-/** 碎片产出：青铜 1，白银 2 */
+/** 碎片产出（v3 品质） */
 export const FRAGMENTS_BY_RARITY: Record<ItemRarity, number> = {
-  bronze: 1,
-  silver: 2,
-  gold: 3,
+  common: 1,
+  rare: 2,
+  epic: 3,
   legendary: 5,
 };
 

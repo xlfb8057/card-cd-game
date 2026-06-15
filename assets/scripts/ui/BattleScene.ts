@@ -190,6 +190,18 @@ export class BattleSceneController {
     return this._slots.map((s) => s.getView());
   }
 
+  /** v4 装备展示：按槽位返回战斗中的装备实例（含实时 CD） */
+  getEquippedItemsBySlot(): (IItemInstance | null)[] {
+    const items = this._battle.getItems();
+    const result: (IItemInstance | null)[] = new Array(6).fill(null);
+    for (const item of items) {
+      if (item.position >= 0 && item.position < 6) {
+        result[item.position] = item;
+      }
+    }
+    return result;
+  }
+
   getLogEntries(): IBattleLogEntry[] {
     return this._log.getEntries();
   }

@@ -1,16 +1,15 @@
 /**
- * 商店系统
- * 刷新、购买、按回合解锁装备池
+ * 商店系统（v3: shopAvailable 控制）
  */
 
 import { IEventBus } from '../core/EventBus';
 import { IConfigTable } from '../core/ConfigTable';
-import { IItemConfig } from '../config/ItemConfig';
+import { IItemConfig, ItemRarity } from '../config/ItemConfig';
 import { IItemInstance } from '../models/ItemInstance';
 import { IEconomySystem } from './EconomySystem';
 import { IInventorySystem } from './InventorySystem';
+import { isShopAvailable } from '../utils/ShopUtil';
 
-/** 商店商品槽 */
 export interface IShopSlot {
   index: number;
   configId: string;
@@ -18,14 +17,13 @@ export interface IShopSlot {
   sold: boolean;
 }
 
-/** 购买结果 */
 export interface IBuyResult {
   success: boolean;
   item?: IItemInstance;
+  starMerged?: boolean;
   reason?: 'sold_out' | 'no_gold' | 'invalid_index' | 'no_config';
 }
 
-/** ShopSystem 对外接口 */
 export interface IShopSystem {
   readonly currentItems: IShopSlot[];
   readonly refreshCount: number;
@@ -40,9 +38,6 @@ export interface IShopSystem {
 const SHOP_SIZE = 6;
 const REFRESH_COST = 2;
 
-/**
- * 商店系统实现
- */
 export class ShopSystem implements IShopSystem {
   private _currentItems: IShopSlot[] = [];
   private _refreshCount = 0;
@@ -80,23 +75,18 @@ export class ShopSystem implements IShopSystem {
 
   refreshShop(round: number): boolean {
     const cost = this.getRefreshCost();
-    if (cost > 0 && !this._economy.spendGold(cost)) {
+    if (!this._economy.spendGold(cost)) {
       return false;
     }
-
     this._refreshCount++;
     this._currentRound = round;
     this._generateShop(round);
     this._eventBus.emit('shop_refreshed', {
       round,
-      cost,
       refreshCount: this._refreshCount,
+      items: this._currentItems,
     });
     return true;
-  }
-
-  getRefreshCost(): number {
-    return this._refreshCount === 0 ? 0 : REFRESH_COST;
   }
 
   buyItem(index: number): IBuyResult {
@@ -106,20 +96,36 @@ export class ShopSystem implements IShopSystem {
     }
 
     const config = slot.config;
-    if (!this._economy.spendGold(config.price)) {
+    if (config.price > 0 && !this._economy.spendGold(config.price)) {
       return { success: false, reason: 'no_gold' };
+    }
+
+    const mergeTarget = this._inventory.findMergeTarget(config.id);
+    if (mergeTarget) {
+      if (!this._inventory.mergeStarUp(mergeTarget)) {
+        return { success: false, reason: 'no_config' };
+      }
+      slot.sold = true;
+      this._eventBus.emit('item_purchased', {
+        itemId: config.id,
+        price: config.price,
+        starMerged: true,
+        star: mergeTarget.star,
+      });
+      return { success: true, item: mergeTarget, starMerged: true };
     }
 
     const item = this._inventory.createItemInstance(config.id, config.price);
     if (!item) {
-      this._economy.addGold(config.price);
+      if (config.price > 0) {
+        this._economy.addGold(config.price);
+      }
       return { success: false, reason: 'no_config' };
     }
 
-    const wasFull = this._inventory.isEquipSlotFull();
+    const wasFull = !this._inventory.hasEmptySlot();
     this._inventory.addToInventory(item);
     slot.sold = true;
-
     const inBackpack = wasFull;
     this._eventBus.emit('item_purchased', {
       itemId: config.id,
@@ -131,16 +137,28 @@ export class ShopSystem implements IShopSystem {
   }
 
   getPoolByRound(round: number): string[] {
-    const all = this._configTable.getAllItems();
+    const allowed = this._getAllowedRarities(round);
+    return this._configTable
+      .getAllItems()
+      .filter((item) => isShopAvailable(item) && allowed.includes(item.rarity))
+      .map((item) => item.id);
+  }
+
+  getRefreshCost(): number {
+    return REFRESH_COST;
+  }
+
+  private _getAllowedRarities(round: number): ItemRarity[] {
     if (round <= 2) {
-      return all.filter((i) => i.rarity === 'bronze').map((i) => i.id);
+      return ['common'];
     }
     if (round <= 4) {
-      return all
-        .filter((i) => i.rarity === 'bronze' || i.rarity === 'silver')
-        .map((i) => i.id);
+      return ['common', 'rare'];
     }
-    return all.map((i) => i.id);
+    if (round <= 6) {
+      return ['common', 'rare', 'epic'];
+    }
+    return ['common', 'rare', 'epic', 'legendary'];
   }
 
   private _generateShop(round: number): void {

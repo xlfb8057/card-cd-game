@@ -14,7 +14,9 @@
         "effect": "trigger_all_food",
         "duration": 10,
         "usesPerBattle": 1
-      }
+      },
+      "passiveDesc": "所有food标签装备效果×1.25；治疗溢出×50%转护盾",
+      "activeDesc": "立即触发所有food装备一次（忽略CD）；接下来10秒内所有food效果×2"
     },
     {
       "id": "mak",
@@ -29,7 +31,9 @@
         "effect": "adrenaline",
         "duration": 15,
         "usesPerBattle": 1
-      }
+      },
+      "passiveDesc": "所有DOT(poison+burn)每秒伤害×1.3；允许自我中毒",
+      "activeDesc": "对自身造成当前HP×15%中毒伤害（不致死，最低保留1HP）；接下来15秒DOT×2，无视50%抗性"
     },
     {
       "id": "stelle",
@@ -44,7 +48,9 @@
         "effect": "overload",
         "duration": 8,
         "usesPerBattle": 1
-      }
+      },
+      "passiveDesc": "所有tool标签装备baseCD×0.8（-20%）；tool装备被摧毁时50%概率战斗后修复",
+      "activeDesc": "8秒内所有tool装备CD强制设为0.5秒"
     }
   ]
 }

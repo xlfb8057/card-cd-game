@@ -1,0 +1,154 @@
+{
+  "mods": [
+    {
+      "id": "mod_sharp",
+      "name": "锋利",
+      "tier": "attribute",
+      "tags": ["damage"],
+      "effectType": "damage",
+      "value": 0.10,
+      "target": "self",
+      "description": "该装备的伤害效果+10%"
+    },
+    {
+      "id": "mod_sturdy",
+      "name": "坚固",
+      "tier": "attribute",
+      "tags": ["shield"],
+      "effectType": "shield",
+      "value": 0.15,
+      "target": "self",
+      "description": "该装备的护盾效果+15%"
+    },
+    {
+      "id": "mod_swift",
+      "name": "迅捷",
+      "tier": "attribute",
+      "tags": ["all"],
+      "effectType": "haste",
+      "value": 0.08,
+      "target": "self",
+      "description": "该装备的CD缩短8%"
+    },
+    {
+      "id": "mod_charge",
+      "name": "充能",
+      "tier": "attribute",
+      "tags": ["all"],
+      "effectType": "haste",
+      "value": 0.20,
+      "target": "self",
+      "description": "触发时自身CD额外减少0.2秒"
+    },
+    {
+      "id": "mod_hearty",
+      "name": "hearty",
+      "tier": "attribute",
+      "tags": ["heal"],
+      "effectType": "heal",
+      "value": 0.12,
+      "target": "self",
+      "description": "该装备的治疗效果+12%"
+    },
+    {
+      "id": "mod_burn",
+      "name": "灼烧",
+      "tier": "mechanism",
+      "tags": ["damage"],
+      "effectType": "dot",
+      "value": 3.0,
+      "target": "enemy",
+      "description": "触发时附加1层burn，持续3秒"
+    },
+    {
+      "id": "mod_frost",
+      "name": "冰冻",
+      "tier": "mechanism",
+      "tags": ["all"],
+      "effectType": "freeze",
+      "value": 1.0,
+      "target": "enemy_fastest",
+      "description": "触发时20%概率冻结敌方最快装备1秒"
+    },
+    {
+      "id": "mod_drive",
+      "name": "传动",
+      "tier": "mechanism",
+      "tags": ["tool"],
+      "effectType": "haste",
+      "value": 0.5,
+      "target": "adjacent",
+      "description": "触发时给相邻装备减少0.5秒CD"
+    },
+    {
+      "id": "mod_resonance",
+      "name": "共鸣",
+      "tier": "mechanism",
+      "tags": ["all"],
+      "effectType": "proc_chance",
+      "value": 0.15,
+      "target": "adjacent",
+      "description": "相邻装备触发时，15%概率该装备也触发一次"
+    },
+    {
+      "id": "mod_leech",
+      "name": "吸血",
+      "tier": "mechanism",
+      "tags": ["damage"],
+      "effectType": "heal",
+      "value": 0.10,
+      "target": "self",
+      "description": "造成伤害的10%转为自身治疗"
+    },
+    {
+      "id": "mod_reversal",
+      "name": "逆转",
+      "tier": "archetype",
+      "tags": ["heal"],
+      "effectType": "damage",
+      "value": 0.50,
+      "target": "enemy",
+      "description": "治疗溢出时，50%转化为对敌伤害"
+    },
+    {
+      "id": "mod_resonance_gold",
+      "name": "共鸣·极",
+      "tier": "archetype",
+      "tags": ["all"],
+      "effectType": "proc_chance",
+      "value": 0.30,
+      "target": "adjacent",
+      "description": "相邻装备触发时，30%概率该装备也触发一次（CD独立）"
+    },
+    {
+      "id": "mod_overload",
+      "name": "超载",
+      "tier": "archetype",
+      "tags": ["all"],
+      "effectType": "buff_multiplier",
+      "value": 0.30,
+      "target": "self",
+      "description": "装备CD达到0.3秒时，每次触发伤害+30%"
+    },
+    {
+      "id": "mod_spread",
+      "name": "扩散",
+      "tier": "archetype",
+      "tags": ["dot"],
+      "effectType": "dot",
+      "value": 0.50,
+      "target": "all_enemy",
+      "description": "DOT效果同时作用于相邻敌人"
+    },
+    {
+      "id": "mod_infinite",
+      "name": "无限",
+      "tier": "archetype",
+      "tags": ["shield"],
+      "effectType": "shield",
+      "value": 0.00,
+      "target": "self",
+      "description": "护盾上限提升至400%（但仍受全局2.5倍限制）"
+    }
+  ]
+}

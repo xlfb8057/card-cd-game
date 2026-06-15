@@ -7,6 +7,14 @@
     "version": "3.8.8"
   },
   "scripts": {
-    "check:wechat-size": "node tools/check-wechat-bundle-size.mjs"
+    "check:wechat-size": "node tools/check-wechat-bundle-size.mjs",
+    "verify:p0": "npx tsx tools/verify-p0.ts",
+    "verify:p1": "npx tsx tools/verify-p1.ts",
+    "verify:p2": "npx tsx tools/verify-p2.ts",
+    "verify:item-display": "npx tsx tools/verify-item-display.ts",
+    "gen:item-display": "node tools/generate-item-display-assets.mjs"
+  },
+  "devDependencies": {
+    "pngjs": "^7.0.0"
   }
 }

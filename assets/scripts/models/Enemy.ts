@@ -3,6 +3,8 @@
  * MVP 阶段：仅 HP + 攻击 CD + 伤害
  */
 
+import { IItemInstance } from './ItemInstance';
+
 /** 敌人实例接口 */
 export interface IEnemy {
   configId: string;
@@ -14,6 +16,8 @@ export interface IEnemy {
   damage: number;
   timeLimit?: number;
   elapsedTime: number;
+  /** 敌方装备栏（可选，用于 freeze enemy_fastest 等） */
+  items: IItemInstance[];
   isAlive(): boolean;
   takeDamage(amount: number): number;
   resetAttackCD(): void;
@@ -43,6 +47,7 @@ export class Enemy implements IEnemy {
   readonly damage: number;
   readonly timeLimit?: number;
   elapsedTime: number;
+  items: IItemInstance[] = [];
 
   constructor(params: ICreateEnemyParams) {
     this.configId = params.configId;

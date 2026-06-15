@@ -42,6 +42,8 @@ export interface IInventorySystem {
     from: 'equipped' | 'backpack',
     type: RecycleType,
   ): IRecycleResult;
+  findMergeTarget(configId: string): IItemInstance | null;
+  mergeStarUp(item: IItemInstance): boolean;
   createItemInstance(
     configId: string,
     purchasePrice: number,
@@ -222,6 +224,40 @@ export class InventorySystem implements IInventorySystem {
     return { type, goldGained, fragmentsGained };
   }
 
+  /** 查找可升星合并的同 id 装备（未满星） */
+  findMergeTarget(configId: string): IItemInstance | null {
+    for (const item of this._equipped) {
+      if (item && this._canMerge(item, configId)) {
+        return item;
+      }
+    }
+    for (const item of this._backpack) {
+      if (this._canMerge(item, configId)) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  /** v3: 重复购买同 id 时 star+1，保留 instanceId 与 currentCD */
+  mergeStarUp(item: IItemInstance): boolean {
+    const config = this._configTable.getItem(item.configId);
+    if (!config) {
+      return false;
+    }
+    const maxStar = config.maxStar ?? 3;
+    if (item.star >= maxStar) {
+      return false;
+    }
+    item.star += 1;
+    this._eventBus.emit('item_star_merged', {
+      itemId: item.configId,
+      instanceId: item.instanceId,
+      star: item.star,
+    });
+    return true;
+  }
+
   createItemInstance(
     configId: string,
     purchasePrice: number,
@@ -273,6 +309,15 @@ export class InventorySystem implements IInventorySystem {
       equipped: this.getAllEquipped().map(itemToSnapshot),
       backpack: this.getBackpack().map(itemToSnapshot),
     };
+  }
+
+  private _canMerge(item: IItemInstance, configId: string): boolean {
+    if (item.configId !== configId) {
+      return false;
+    }
+    const config = this._configTable.getItem(configId);
+    const maxStar = config?.maxStar ?? 3;
+    return item.star < maxStar;
   }
 
   private _itemFromSnapshot(data: ISnapshotItem): IItemInstance | null {

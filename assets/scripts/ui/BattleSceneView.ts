@@ -23,6 +23,8 @@ import { IBattleHUDView, IBattleSettlementView, BattleScenePhase } from './Battl
 import { IItemSlotView } from './ItemSlot';
 import { IRescueButtonView } from './RescuePanel';
 import { IBattleLogEntry } from './BattleLog';
+import { ItemDisplayController } from './item-display/ItemDisplayController';
+import { IItemInstance } from '../models/ItemInstance';
 
 const { ccclass, property } = _decorator;
 
@@ -99,6 +101,10 @@ export class BattleSceneView extends Component {
   @property(Label)
   messageLabel: Label | null = null;
 
+  /** v4 装备展示（可选，挂接 ItemDisplayController 后启用） */
+  @property(ItemDisplayController)
+  itemDisplay: ItemDisplayController | null = null;
+
   private _lastLogText = '';
   private _messageTimer = 0;
   /** 结算面板打开期间保持提示，不被计时器清掉 */
@@ -125,7 +131,13 @@ export class BattleSceneView extends Component {
 
     const battle = app.getBattle();
     this._refreshHUD(battle.getHUD());
-    this._refreshSlots(battle.getItemSlotViews());
+    if (this.itemDisplay) {
+      this._refreshItemDisplay(app);
+      this._setLegacySlotsVisible(false);
+    } else {
+      this._refreshSlots(battle.getItemSlotViews());
+      this._setLegacySlotsVisible(true);
+    }
     this._refreshLog(battle.getLogEntries());
     this._refreshRescue(battle.getRescueButtons());
     this._refreshSettlement(battle.getPhase(), battle.getSettlement());
@@ -288,6 +300,30 @@ export class BattleSceneView extends Component {
         border.node.setScale(1.15, 1.15, 1);
       } else if (border) {
         border.node.setScale(1, 1, 1);
+      }
+    }
+  }
+
+  private _refreshItemDisplay(app: NonNullable<ReturnType<BattleSceneView['_getApp']>>): void {
+    if (!this.itemDisplay) {
+      return;
+    }
+    const items = app.getBattle().getEquippedItemsBySlot();
+    this.itemDisplay.setDeps(app.getItemDisplayDeps());
+    this.itemDisplay.refreshEquippedSlots('battle_equipped', items);
+    this.itemDisplay.ensureToastListener((msg) => this._flashMessage(msg));
+  }
+
+  private _setLegacySlotsVisible(visible: boolean): void {
+    for (let i = 0; i < 6; i++) {
+      if (this.slotNameLabels[i]) {
+        this.slotNameLabels[i]!.node.active = visible;
+      }
+      if (this.slotCDLabels[i]) {
+        this.slotCDLabels[i]!.node.active = visible;
+      }
+      if (this.slotBorders[i]) {
+        this.slotBorders[i]!.node.active = visible;
       }
     }
   }

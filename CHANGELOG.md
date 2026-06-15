@@ -6,6 +6,33 @@
 
 ---
 
+## [0.5.0] - 2026-06-15
+
+### 新增
+
+- **装备前端展示 v4（Phase 1–2）** — `assets/scripts/ui/item-display/`
+  - 数据层：`ItemDisplayPresenter`、`ItemEffectDescriber`、`MergeHintResolver`、`BuildSynergyResolver`、`BuildSynergyAnalyzer`
+  - Cocos 组件：`ItemCardWidget`、`ItemDetailPopover`、`BuildSynergyPanel`、`ModSelectPanel` 等
+  - 协调器：`ItemDisplayController`（Popover、联动高亮、升星闪烁）
+  - 场景可选接入：`BattleSceneView` / `ShopSceneView` 的 `itemDisplay` 属性
+- **v3 逻辑层扩展**：`EffectResolver`、`ModSystem`、`BuffSystem`、`DotSystem`、`ProcChanceSystem`、`mods.json`
+- **占位切图**：`assets/resources/textures/item-display/`、`textures/items/`（`npm run gen:item-display`）
+- **离线验证**：`npm run verify:item-display`、`verify:p0/p1/p2`
+- **文档**：`Docs/装备前端显示_实现进度_v4.md`
+
+### 变更
+
+- `GameApp.getItemDisplayDeps()`、`ShopScene.getModOfferChoices()`、`IShopCardView.configId`
+- `ItemConfig.sellPrice`（ConfigTable 缺省时 `floor(price×0.7)`）
+- `package.json`：`gen:item-display`、`verify:item-display` 脚本；devDependency `pngjs`
+
+### 待办（见实现进度文档）
+
+- Cocos 预制体与场景挂接、9-slice 设置
+- F-10/F-11 详情颜色、F-17 商店专属过滤、HeroInfoWindow / 出售 / 背包 UI
+
+---
+
 ## [0.4.0] - 2026-06-15
 
 ### 新增

@@ -3,13 +3,14 @@
  * 运行时 mutable 状态，对应 6 格装备栏中的一项
  */
 
-import { CD_MIN } from '../utils/MathUtil';
+import { GAME_CONSTANTS } from '../config/GameConstants';
 import { ISnapshotItem } from './GameSnapshot';
 
 /** 装备实例接口 */
 export interface IItemInstance {
   configId: string;
   instanceId: string;
+  /** 装备栏位置 0-5（等同 v3 slotIndex） */
   position: number;
   currentCD: number;
   star: number;
@@ -17,26 +18,26 @@ export interface IItemInstance {
   mods: string[];
   purchasePrice: number;
   triggeredThisFrame: boolean;
+  /** 被冻结剩余时间（秒），冻结期间 CD 不减少 */
+  freezeRemaining: number;
   resetCD(baseCD: number): void;
-  applyHaste(amount: number): void;
+  applyHaste(amount: number, minCD?: number): void;
   canTrigger(): boolean;
   clearFrameFlag(): void;
   markTriggered(): void;
+  tickFreeze(dt: number): void;
 }
 
 let _nextInstanceId = 1;
 
-/** 生成唯一实例 ID */
 export function generateInstanceId(): string {
   return `item_${_nextInstanceId++}`;
 }
 
-/** 重置实例 ID 计数器（测试用） */
 export function resetInstanceIdCounter(): void {
   _nextInstanceId = 1;
 }
 
-/** 从存档恢复时同步实例 ID 计数器 */
 export function syncInstanceIdCounterFromSave(items: { instanceId: string }[]): void {
   for (const item of items) {
     const match = /^item_(\d+)$/.exec(item.instanceId);
@@ -49,7 +50,6 @@ export function syncInstanceIdCounterFromSave(items: { instanceId: string }[]): 
   }
 }
 
-/** 序列化为快照条目 */
 export function itemToSnapshot(item: IItemInstance): ISnapshotItem {
   return {
     configId: item.configId,
@@ -62,7 +62,6 @@ export function itemToSnapshot(item: IItemInstance): ISnapshotItem {
   };
 }
 
-/** 创建装备实例所需参数 */
 export interface ICreateItemParams {
   configId: string;
   position: number;
@@ -73,10 +72,6 @@ export interface ICreateItemParams {
   instanceId?: string;
 }
 
-/**
- * 装备实例
- * position 范围 0-5，对应该格在装备栏中的索引
- */
 export class ItemInstance implements IItemInstance {
   readonly configId: string;
   readonly instanceId: string;
@@ -87,6 +82,7 @@ export class ItemInstance implements IItemInstance {
   mods: string[];
   purchasePrice: number;
   triggeredThisFrame: boolean;
+  freezeRemaining: number;
 
   constructor(params: ICreateItemParams) {
     this.configId = params.configId;
@@ -98,38 +94,40 @@ export class ItemInstance implements IItemInstance {
     this.mods = params.mods ?? [];
     this.purchasePrice = params.purchasePrice ?? 0;
     this.triggeredThisFrame = false;
+    this.freezeRemaining = 0;
   }
 
-  /** 触发后重置 CD 到完整值 */
   resetCD(baseCD: number): void {
     this.currentCD = baseCD;
     this.triggeredThisFrame = false;
   }
 
-  /**
-   * 应用加速（减少当前 CD）
-   * 硬下限 0.3 秒：已在下限或以下时不再减少
-   */
-  applyHaste(amount: number): void {
-    if (this.currentCD <= CD_MIN) {
+  applyHaste(amount: number, minCD: number = GAME_CONSTANTS.CD_MIN): void {
+    if (this.currentCD <= minCD) {
       return;
     }
-    this.currentCD = Math.max(CD_MIN, this.currentCD - amount);
+    this.currentCD = Math.max(minCD, this.currentCD - amount);
     this.hasteCount++;
   }
 
-  /** CD 是否已归零，可以触发 */
   canTrigger(): boolean {
+    if (this.freezeRemaining > 0) {
+      return false;
+    }
     return this.currentCD <= 0;
   }
 
-  /** 清除本帧触发标记（每帧开始时调用） */
   clearFrameFlag(): void {
     this.triggeredThisFrame = false;
   }
 
-  /** 标记本帧已触发 */
   markTriggered(): void {
     this.triggeredThisFrame = true;
+  }
+
+  tickFreeze(dt: number): void {
+    if (this.freezeRemaining > 0) {
+      this.freezeRemaining = Math.max(0, this.freezeRemaining - dt);
+    }
   }
 }

@@ -1,28 +1,39 @@
 /**
- * 战斗系统
- * 主循环：CD 更新 → 装备触发 → 加速循环 → 敌人攻击 → 胜负判定
+ * 战斗系统（v3）
+ * 主循环：CD 更新 → 装备触发 → DOT tick → 敌人攻击 → 胜负判定
  */
 
 import { IEventBus } from '../core/EventBus';
 import { IConfigTable } from '../core/ConfigTable';
-import { IItemEffect, IItemConfig } from '../config/ItemConfig';
+import { IItemConfig, EffectTarget } from '../config/ItemConfig';
+import { GAME_CONSTANTS } from '../config/GameConstants';
 import { IItemInstance } from '../models/ItemInstance';
 import { IEnemy } from '../models/Enemy';
 import { CDSystem, ICDSystem } from './CDSystem';
 import { IHeroSystem, IHeroSkillContext } from './HeroSystem';
+import { DotSystem, IDotSystem, IDotDamageTarget } from './DotSystem';
 import {
-  calculateDamage,
-  calculateRealCD,
-  applyShield,
-  applyHeal,
-  getAdjacentPositions,
-  SHIELD_MAX_RATIO,
-} from '../utils/MathUtil';
+  EffectResolver,
+  IEffectBattleContext,
+} from './EffectResolver';
+import { ModSystem, IModSystem } from './ModSystem';
+import { BuffSystem, IBuffSystem } from './BuffSystem';
+import { ProcChanceSystem, IProcChanceSystem } from './ProcChanceSystem';
+import { calculateRealCD } from '../utils/MathUtil';
 
-/** 战斗结果 */
+export interface IBattleSystemDeps {
+  eventBus: IEventBus;
+  configTable: IConfigTable;
+  cdSystem?: ICDSystem;
+  heroSystem?: IHeroSystem;
+  modSystem?: IModSystem;
+  buffSystem?: IBuffSystem;
+  procChanceSystem?: IProcChanceSystem;
+  rng?: () => number;
+}
+
 export type BattleResult = 'ongoing' | 'victory' | 'defeat' | 'timeout';
 
-/** 战斗状态快照 */
 export interface IBattleState {
   playerHP: number;
   playerMaxHP: number;
@@ -33,41 +44,28 @@ export interface IBattleState {
   elapsedTime: number;
 }
 
-/** 战斗系统依赖 */
-export interface IBattleSystemDeps {
-  eventBus: IEventBus;
-  configTable: IConfigTable;
-  cdSystem?: ICDSystem;
-  heroSystem?: IHeroSystem;
-}
-
-/** 战斗结束事件 */
 export interface IBattleEndPayload {
   result: BattleResult;
   elapsedTime: number;
 }
 
-/** 装备触发事件 */
 export interface IItemTriggeredPayload {
   item: IItemInstance;
   config: IItemConfig;
 }
 
-/** 加速应用事件 */
 export interface IHasteAppliedPayload {
   source: IItemInstance;
   target: IItemInstance;
   amount: number;
 }
 
-/** 伤害事件 */
 export interface IDamageDealtPayload {
   source: string;
   target: 'enemy' | 'player';
   amount: number;
 }
 
-/** BattleSystem 对外接口 */
 export interface IBattleSystem {
   startBattle(
     items: IItemInstance[],
@@ -89,15 +87,18 @@ export interface IBattleSystem {
   endRepositionPause(): void;
 }
 
-/**
- * 战斗系统实现
- */
 export class BattleSystem implements IBattleSystem {
   private readonly _eventBus: IEventBus;
   private readonly _configTable: IConfigTable;
   private readonly _cdSystem: ICDSystem;
   private readonly _heroSystem: IHeroSystem | null;
+  private readonly _modSystem: IModSystem;
+  private readonly _buffSystem: IBuffSystem;
+  private readonly _procChanceSystem: IProcChanceSystem;
+  private readonly _rng: () => number;
 
+  private _dotSystem: IDotSystem | null = null;
+  private _lastDamageDealt = 0;
   private _items: IItemInstance[] = [];
   private _enemy: IEnemy | null = null;
   private _playerHP = 0;
@@ -109,7 +110,6 @@ export class BattleSystem implements IBattleSystem {
   private _repositionPauseTimer = 0;
   private _enemyFreezeTimer = 0;
 
-  /** 下帧待触发队列（单帧触发上限） */
   private readonly _deferredQueue: IItemInstance[] = [];
 
   constructor(deps: IBattleSystemDeps) {
@@ -117,6 +117,13 @@ export class BattleSystem implements IBattleSystem {
     this._configTable = deps.configTable;
     this._cdSystem = deps.cdSystem ?? new CDSystem();
     this._heroSystem = deps.heroSystem ?? null;
+    this._modSystem =
+      deps.modSystem ?? new ModSystem(deps.eventBus, deps.configTable);
+    this._rng = deps.rng ?? Math.random;
+    this._buffSystem = deps.buffSystem ?? new BuffSystem();
+    this._procChanceSystem =
+      deps.procChanceSystem ??
+      new ProcChanceSystem(deps.configTable, this._modSystem, this._rng);
 
     if (this._heroSystem) {
       this._heroSystem.onOverloadEnd(() => {
@@ -140,12 +147,22 @@ export class BattleSystem implements IBattleSystem {
     this._elapsedTime = 0;
     this._deferredQueue.length = 0;
     this._enemyFreezeTimer = 0;
+    this._lastDamageDealt = 0;
+    this._buffSystem.clearAll();
     this._cdSystem.clear();
     this._heroSystem?.resetForBattle();
+
+    this._dotSystem = new DotSystem({
+      eventBus: this._eventBus,
+      getDotBoostMod: () => this._getDotBoostMod(),
+      hasUnlockCap: () => this._hasUnlockCap(),
+      resolveTarget: (id) => this._resolveDotTarget(id),
+    });
 
     for (const item of this._items) {
       item.clearFrameFlag();
       item.hasteCount = 0;
+      item.freezeRemaining = 0;
       this._cdSystem.register(item);
     }
   }
@@ -164,16 +181,21 @@ export class BattleSystem implements IBattleSystem {
 
     this._processDeferredQueue();
     this._heroSystem?.update(dt);
+
     if (this._repositionPauseTimer > 0) {
       this._repositionPauseTimer = Math.max(0, this._repositionPauseTimer - dt);
       if (this._repositionPauseTimer <= 0) {
         this.endRepositionPause();
       }
     }
+
     if (this._enemyFreezeTimer > 0) {
       this._enemyFreezeTimer = Math.max(0, this._enemyFreezeTimer - dt);
     }
+
     this._tickItemCDs(dt);
+    this._dotSystem?.update(dt);
+    this._buffSystem.update(dt);
     this._tickEnemyAttack(dt);
     this._checkBattleEnd();
   }
@@ -202,7 +224,20 @@ export class BattleSystem implements IBattleSystem {
     if (!this._heroSystem) {
       return false;
     }
-    return this._heroSystem.activateSkill(this._createSkillContext());
+
+    const result = this._heroSystem.activateSkill(this._createSkillContext());
+
+    if (result && this._heroSystem.isOverloadActive()) {
+      for (const item of this._items) {
+        const cfg = this._configTable.getItem(item.configId);
+        if (cfg?.tags.includes('tool')) {
+          item.currentCD = GAME_CONSTANTS.OVERLOAD_CD_FORCED;
+          this._cdSystem.register(item);
+        }
+      }
+    }
+
+    return result;
   }
 
   triggerItemImmediately(item: IItemInstance): void {
@@ -212,7 +247,7 @@ export class BattleSystem implements IBattleSystem {
     item.currentCD = 0;
     this._cdSystem.unregister(item);
     if (!item.triggeredThisFrame) {
-      this._triggerItem(item);
+      this._triggerItem(item, true);
     } else {
       this._deferTrigger(item);
     }
@@ -228,7 +263,6 @@ export class BattleSystem implements IBattleSystem {
     return [...this._items];
   }
 
-  /** 紧急充能：CD × 0.5，≤1 秒时立即触发 */
   applyEmergencyCharge(item: IItemInstance): void {
     const before = item.currentCD;
     item.currentCD *= 0.5;
@@ -289,10 +323,80 @@ export class BattleSystem implements IBattleSystem {
       setPlayerHP: (hp) => {
         this._playerHP = hp;
       },
+      applySelfPoison: (amount, sourceId) => {
+        if (!this._dotSystem || amount <= 0) {
+          return;
+        }
+        this._dotSystem.applyDot('player', 'poison', amount, undefined, sourceId);
+      },
     };
   }
 
-  /** 处理上帧 deferred 的装备触发 */
+  private _createEffectContext(): IEffectBattleContext {
+    const enemy = this._enemy;
+    return {
+      configTable: this._configTable,
+      heroSystem: this._heroSystem,
+      dotSystem: this._dotSystem!,
+      getItems: () => this._items,
+      getEnemyId: () => enemy?.configId ?? 'enemy',
+      isEnemyAlive: () => enemy?.isAlive() ?? false,
+      dealDamageToEnemy: (sourceId, amount, isCrit) => {
+        if (!enemy?.isAlive()) {
+          return;
+        }
+        const dealt = enemy.takeDamage(amount);
+        this._eventBus.emit<IDamageDealtPayload>('damage_dealt', {
+          source: sourceId,
+          target: 'enemy',
+          amount: dealt,
+        });
+        if (isCrit) {
+          this._eventBus.emit('crit_hit', { source: sourceId, amount: dealt });
+        }
+      },
+      getPlayerHP: () => this._playerHP,
+      getPlayerMaxHP: () => this._playerMaxHP,
+      getPlayerShield: () => this._playerShield,
+      setPlayerHP: (hp) => {
+        this._playerHP = hp;
+      },
+      setPlayerShield: (shield) => {
+        this._playerShield = shield;
+      },
+      applyHasteToItems: (source, amount, targets) =>
+        this._applyHaste(source, amount, targets),
+      applyEnemyFreeze: (duration, target) =>
+        this._applyFreeze(duration, target),
+      getCDBreakMin: (item) => this._getCDBreakMin(item),
+      getDotStacksOnEnemy: () =>
+        this._dotSystem?.getTotalStacks(enemy?.configId ?? 'enemy') ?? 0,
+      getTagBuffMultiplier: (tags) => this._buffSystem.getTagMultiplier(tags),
+      addTagBuff: (target, multiplier, duration) =>
+        this._buffSystem.addTagBuff(target, multiplier, duration),
+      rollChance: (chance) => this._rng() < chance,
+      getLastDamageDealt: () => this._lastDamageDealt,
+      setLastDamageDealt: (amount) => {
+        this._lastDamageDealt = amount;
+      },
+      emitHeal: (healed, overflow, tags) => {
+        this._eventBus.emit('heal_applied', {
+          amount: healed,
+          hp: this._playerHP,
+          tags,
+          overflow,
+        });
+      },
+      emitShield: (gained, tags) => {
+        this._eventBus.emit('shield_gained', {
+          amount: gained,
+          total: this._playerShield,
+          tags,
+        });
+      },
+    };
+  }
+
   private _processDeferredQueue(): void {
     if (this._deferredQueue.length === 0) {
       return;
@@ -308,7 +412,6 @@ export class BattleSystem implements IBattleSystem {
     }
   }
 
-  /** CD 系统 tick + 触发就绪装备 */
   private _tickItemCDs(dt: number): void {
     const { readyItems } = this._cdSystem.update(dt);
     const readySet = new Set(readyItems);
@@ -330,16 +433,14 @@ export class BattleSystem implements IBattleSystem {
     }
   }
 
-  /** 单帧触发上限：加入下帧队列 */
   private _deferTrigger(item: IItemInstance): void {
     if (!this._deferredQueue.includes(item)) {
       this._deferredQueue.push(item);
     }
   }
 
-  /** 触发单件装备 */
-  private _triggerItem(item: IItemInstance): void {
-    if (this._result !== 'ongoing') {
+  private _triggerItem(item: IItemInstance, skipCDReset = false): void {
+    if (this._result !== 'ongoing' || !this._dotSystem) {
       return;
     }
 
@@ -354,92 +455,61 @@ export class BattleSystem implements IBattleSystem {
       config,
     });
 
-    let critMultiplier = 1;
-    for (const effect of config.effects) {
-      if (effect.type === 'crit') {
-        critMultiplier = effect.value;
-      }
+    const modMechanism = this._modSystem.getModMechanismEffects(item);
+    const modBonuses = this._modSystem.getModAttributeBonuses(item);
+    EffectResolver.resolveAllEffects(
+      item,
+      config,
+      this._createEffectContext(),
+      modMechanism,
+      modBonuses,
+    );
+
+    this._applyModHasteAfterTrigger(item, config);
+
+    if (!skipCDReset) {
+      const realCD = this._heroSystem
+        ? this._heroSystem.getModifiedCD(config.baseCD, config.tags)
+        : calculateRealCD(config.baseCD, 0, 1);
+      item.resetCD(realCD);
+      this._cdSystem.register(item);
     }
 
-    for (const effect of config.effects) {
-      this._executeEffect(item, config, effect, critMultiplier);
-    }
-
-    const realCD = this._heroSystem
-      ? this._heroSystem.getModifiedCD(config.baseCD, config.tags)
-      : calculateRealCD(config.baseCD, 0, 1);
-    item.resetCD(realCD);
-    this._cdSystem.register(item);
-  }
-
-  /** 执行单条效果 */
-  private _executeEffect(
-    source: IItemInstance,
-    config: IItemConfig,
-    effect: IItemEffect,
-    critMultiplier: number,
-  ): void {
-    const mult = this._heroSystem
-      ? this._heroSystem.getEffectMultiplier(config.tags, effect.type)
-      : 1;
-    const scaledValue = effect.value * mult;
-
-    switch (effect.type) {
-      case 'damage':
-        this._applyDamage(source, scaledValue, critMultiplier);
-        break;
-      case 'haste':
-        this._applyHaste(source, scaledValue, effect.target);
-        break;
-      case 'shield':
-        this._applyShieldEffect(scaledValue, config.tags);
-        break;
-      case 'heal':
-        this._applyHealEffect(scaledValue, config.tags);
-        break;
-      case 'dot':
-        this._applyDamage(source, scaledValue, 1);
-        break;
-      case 'crit':
-        break;
-      case 'freeze':
-        this._applyFreeze(scaledValue);
-        break;
-      default:
-        break;
-    }
-  }
-
-  private _applyDamage(
-    source: IItemInstance,
-    baseDamage: number,
-    critMultiplier: number,
-  ): void {
-    if (!this._enemy?.isAlive()) {
-      return;
-    }
-
-    const amount = calculateDamage(baseDamage, 0, critMultiplier);
-    const dealt = this._enemy.takeDamage(amount);
-
-    this._eventBus.emit<IDamageDealtPayload>('damage_dealt', {
-      source: source.configId,
-      target: 'enemy',
-      amount: dealt,
+    this._procChanceSystem.onItemTriggered(item, this._items, (target) => {
+      this.triggerItemImmediately(target);
     });
   }
 
-  /** 加速循环核心：给目标装备减 CD，硬下限 0.3 秒 */
+  private _applyModHasteAfterTrigger(
+    item: IItemInstance,
+    config: IItemConfig,
+  ): void {
+    const hasteBonus = this._modSystem.getModAttributeBonuses(item).haste;
+    if (!hasteBonus || hasteBonus <= 0) {
+      return;
+    }
+
+    const minCD = this._getCDBreakMin(item);
+    if (hasteBonus <= 0.15) {
+      item.applyHaste(config.baseCD * hasteBonus, minCD);
+    } else {
+      item.applyHaste(hasteBonus, minCD);
+    }
+
+    if (item.currentCD > 0) {
+      this._cdSystem.register(item);
+    }
+  }
+
   private _applyHaste(
     source: IItemInstance,
     amount: number,
-    targetType: IItemEffect['target'],
+    targets: IItemInstance[],
   ): void {
-    const targets = this._resolveHasteTargets(source, targetType);
-
     for (const target of targets) {
+      const minCD = this._getCDBreakMin(target);
       const prevCD = target.currentCD;
-      target.applyHaste(amount);
+      target.applyHaste(amount, minCD);
 
       this._eventBus.emit<IHasteAppliedPayload>('haste_applied', {
         source,
@@ -459,75 +529,125 @@ export class BattleSystem implements IBattleSystem {
     }
   }
 
-  private _resolveHasteTargets(
-    source: IItemInstance,
-    targetType: IItemEffect['target'],
-  ): IItemInstance[] {
-    switch (targetType) {
-      case 'adjacent':
-        return this._getItemsAtPositions(
-          getAdjacentPositions(source.position),
-        );
-      case 'all_tools':
-        return this._items.filter((item) => {
-          const cfg = this._configTable.getItem(item.configId);
-          return cfg?.tags.includes('tool');
-        });
-      case 'self':
-        return [source];
-      default:
-        return this._getItemsAtPositions(
-          getAdjacentPositions(source.position),
-        );
-    }
-  }
+  private _applyFreeze(duration: number, target: EffectTarget = 'enemy'): void {
+    const enemy = this._enemy;
 
-  private _getItemsAtPositions(positions: number[]): IItemInstance[] {
-    return this._items.filter((item) => positions.includes(item.position));
-  }
-
-  private _applyShieldEffect(amount: number, itemTags: string[]): void {
-    const maxShield = Math.floor(this._playerMaxHP * SHIELD_MAX_RATIO);
-    this._playerShield = applyShield(this._playerShield, amount, maxShield);
-    this._eventBus.emit('shield_gained', {
-      amount,
-      total: this._playerShield,
-      tags: itemTags,
-    });
-  }
-
-  private _applyHealEffect(amount: number, itemTags: string[]): void {
-    const before = this._playerHP;
-    this._playerHP = applyHeal(this._playerHP, amount, this._playerMaxHP);
-    const healed = this._playerHP - before;
-
-    const overflow = amount - healed;
     if (
-      overflow > 0 &&
-      this._heroSystem?.getHero()?.passiveConfig.overflowToShield
+      (target === 'enemy_fastest' || target === 'enemy') &&
+      enemy &&
+      enemy.items.length > 0
     ) {
-      const ratio = this._heroSystem.getHero()!.passiveConfig.overflowToShield!;
-      const maxShield = Math.floor(this._playerMaxHP * SHIELD_MAX_RATIO);
-      this._playerShield = applyShield(
-        this._playerShield,
-        Math.floor(overflow * ratio),
-        maxShield,
-      );
+      let fastest = enemy.items[0];
+      for (const item of enemy.items) {
+        if (item.currentCD < fastest.currentCD) {
+          fastest = item;
+        }
+      }
+      fastest.freezeRemaining = Math.max(fastest.freezeRemaining, duration);
+      this._eventBus.emit('freeze_applied', {
+        targetItemId: fastest.instanceId,
+        duration,
+      });
+      return;
     }
 
-    this._eventBus.emit('heal_applied', {
-      amount: healed,
-      hp: this._playerHP,
-      tags: itemTags,
+    this._enemyFreezeTimer = Math.max(this._enemyFreezeTimer, duration);
+    this._eventBus.emit('enemy_frozen', { duration, target });
+  }
+
+  private _getCDBreakMin(target: IItemInstance): number {
+    if (this._heroSystem?.isOverloadActive()) {
+      const cfg = this._configTable.getItem(target.configId);
+      if (cfg?.tags.includes('tool')) {
+        return GAME_CONSTANTS.OVERLOAD_CD_FORCED;
+      }
+    }
+
+    const targetCfg = this._configTable.getItem(target.configId);
+    const isTool = targetCfg?.tags.includes('tool') ?? false;
+    if (!isTool) {
+      return GAME_CONSTANTS.CD_MIN;
+    }
+
+    for (const equipped of this._items) {
+      const cfg = this._configTable.getItem(equipped.configId);
+      if (!cfg) {
+        continue;
+      }
+      for (const effect of cfg.effects) {
+        if (effect.type === 'cd_break') {
+          return effect.value > 0
+            ? effect.value
+            : GAME_CONSTANTS.CD_BREAK_MIN;
+        }
+      }
+    }
+
+    return GAME_CONSTANTS.CD_MIN;
+  }
+
+  private _hasUnlockCap(): boolean {
+    return this._items.some((item) => {
+      const cfg = this._configTable.getItem(item.configId);
+      return cfg?.effects.some((e) => e.type === 'unlock_cap') ?? false;
     });
   }
 
-  private _applyFreeze(duration: number): void {
-    this._enemyFreezeTimer = Math.max(this._enemyFreezeTimer, duration);
-    this._eventBus.emit('enemy_frozen', { duration });
+  private _getDotBoostMod(): number {
+    let boost = 1;
+    const hero = this._heroSystem?.getHero();
+    if (hero?.passiveConfig.type === 'dot_boost') {
+      boost *= 1 + hero.passiveConfig.value;
+    }
+    if (this._heroSystem && this._heroSystem.getDotBoostTimer() > 0) {
+      boost *= 2;
+    }
+    return boost;
   }
 
-  /** 斯黛拉过载结束：随机销毁 1 件 tool 装备 */
+  private _resolveDotTarget(targetId: string): IDotDamageTarget | null {
+    if (targetId === 'player') {
+      return {
+        id: 'player',
+        getHP: () => this._playerHP,
+        applyDotDamage: (amount) => {
+          const before = this._playerHP;
+          this._playerHP = Math.max(0, this._playerHP - amount);
+          const dealt = before - this._playerHP;
+          if (dealt > 0) {
+            this._eventBus.emit<IDamageDealtPayload>('damage_dealt', {
+              source: 'dot',
+              target: 'player',
+              amount: dealt,
+            });
+          }
+          return dealt;
+        },
+      };
+    }
+
+    if (this._enemy && (targetId === this._enemy.configId || targetId === 'enemy')) {
+      const enemy = this._enemy;
+      return {
+        id: enemy.configId,
+        getHP: () => enemy.hp,
+        applyDotDamage: (amount) => {
+          const dealt = enemy.takeDamage(amount);
+          if (dealt > 0) {
+            this._eventBus.emit<IDamageDealtPayload>('damage_dealt', {
+              source: 'dot',
+              target: 'enemy',
+              amount: dealt,
+            });
+          }
+          return dealt;
+        },
+      };
+    }
+
+    return null;
+  }
+
   private _destroyRandomTool(): void {
     const tools = this._items.filter((item) => {
       const cfg = this._configTable.getItem(item.configId);
@@ -542,7 +662,6 @@ export class BattleSystem implements IBattleSystem {
     this.removeItem(tools[idx]);
   }
 
-  /** 敌人攻击循环 */
   private _tickEnemyAttack(dt: number): void {
     if (!this._enemy?.isAlive()) {
       return;
@@ -601,6 +720,8 @@ export class BattleSystem implements IBattleSystem {
 
   private _endBattle(result: BattleResult): void {
     this._result = result;
+    this._dotSystem?.clearAllDots();
+    this._buffSystem.clearAll();
     this._eventBus.emit<IBattleEndPayload>('battle_end', {
       result,
       elapsedTime: this._elapsedTime,

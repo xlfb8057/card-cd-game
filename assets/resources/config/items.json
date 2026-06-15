@@ -1,197 +1,547 @@
 {
   "items": [
     {
-      "id": "pencil_sharpener",
-      "name": "卷笔刀",
-      "rarity": "bronze",
-      "baseCD": 2.0,
-      "price": 5,
-      "tags": ["damage", "tool"],
-      "effects": [
-        { "type": "damage", "value": 15, "target": "enemy" }
-      ],
-      "heroAffinity": "stelle",
-      "maxStar": 3
-    },
-    {
-      "id": "spring_fist",
-      "name": "弹簧拳",
-      "rarity": "bronze",
-      "baseCD": 3.0,
-      "price": 5,
-      "tags": ["damage", "tool"],
-      "effects": [
-        { "type": "damage", "value": 25, "target": "enemy" },
-        { "type": "haste", "value": 1.0, "target": "adjacent", "trigger": "onTrigger" }
-      ],
-      "heroAffinity": "stelle",
-      "maxStar": 3
-    },
-    {
-      "id": "serpent_fang",
-      "name": "蛇怪之牙",
-      "rarity": "bronze",
-      "baseCD": 4.0,
-      "price": 5,
-      "tags": ["dot", "poison"],
-      "effects": [
-        { "type": "dot", "value": 8, "target": "enemy", "dotType": "poison" }
-      ],
-      "heroAffinity": "mak",
-      "maxStar": 3
-    },
-    {
-      "id": "hot_sauce",
-      "name": "辣酱",
-      "rarity": "bronze",
-      "baseCD": 3.5,
-      "price": 4,
-      "tags": ["dot", "burn", "food"],
-      "effects": [
-        { "type": "dot", "value": 6, "target": "enemy", "dotType": "burn" }
-      ],
-      "heroAffinity": "jules",
-      "maxStar": 3
-    },
-    {
       "id": "spike_trap",
       "name": "地刺陷阱",
-      "rarity": "bronze",
+      "rarity": "common",
       "baseCD": 5.0,
       "price": 4,
-      "tags": ["dot", "damage"],
-      "effects": [
-        { "type": "dot", "value": 5, "target": "enemy", "dotType": "poison" },
-        { "type": "damage", "value": 10, "target": "enemy" }
+      "shopAvailable": true,
+      "tags": [
+        "dot",
+        "damage"
       ],
-      "maxStar": 3
+      "effects": [
+        {
+          "type": "dot",
+          "value": 5,
+          "target": "enemy",
+          "dotType": "poison",
+          "starScale": 0.4,
+          "desc": "施加中毒，每秒造成{value}点持续伤害（+1层/次，每次tick层数-1）"
+        },
+        {
+          "type": "damage",
+          "value": 10,
+          "target": "enemy",
+          "starScale": 0.5,
+          "desc": "造成{value}点直接伤害"
+        }
+      ],
+      "maxStar": 3,
+      "description": "造成10点伤害，附加中毒每秒5点持续伤害",
+      "iconPath": "items/spike_trap"
     },
     {
       "id": "glasses",
       "name": "眼镜",
-      "rarity": "bronze",
+      "rarity": "common",
       "baseCD": 4.0,
       "price": 4,
-      "tags": ["shield"],
-      "effects": [
-        { "type": "shield", "value": 20, "target": "self" }
+      "shopAvailable": true,
+      "tags": [
+        "shield"
       ],
-      "maxStar": 3
+      "effects": [
+        {
+          "type": "shield",
+          "value": 20,
+          "target": "self",
+          "starScale": 0.6,
+          "desc": "获得{value}点护盾（上限=HP×2.5）"
+        }
+      ],
+      "maxStar": 3,
+      "description": "获得20点护盾",
+      "iconPath": "items/glasses"
     },
     {
       "id": "soothing_heal",
       "name": "抚慰疗愈",
-      "rarity": "bronze",
+      "rarity": "common",
       "baseCD": 5.0,
       "price": 5,
-      "tags": ["heal"],
-      "effects": [
-        { "type": "heal", "value": 15, "target": "self" }
+      "shopAvailable": true,
+      "tags": [
+        "heal"
       ],
-      "maxStar": 3
-    },
-    {
-      "id": "lighter",
-      "name": "打火机",
-      "rarity": "bronze",
-      "baseCD": 4.0,
-      "price": 4,
-      "tags": ["haste", "tool"],
       "effects": [
-        { "type": "haste", "value": 1.5, "target": "adjacent", "trigger": "onTrigger" }
+        {
+          "type": "heal",
+          "value": 15,
+          "target": "self",
+          "starScale": 0.6,
+          "desc": "恢复{value}点生命值（溢出按角色被动处理）"
+        }
       ],
-      "heroAffinity": "stelle",
-      "maxStar": 3
-    },
-    {
-      "id": "cotton_engine",
-      "name": "棉花糖引擎",
-      "rarity": "bronze",
-      "baseCD": 6.0,
-      "price": 6,
-      "tags": ["haste", "tool"],
-      "effects": [
-        { "type": "haste", "value": 1.0, "target": "all_tools", "trigger": "onTrigger" }
-      ],
-      "heroAffinity": "stelle",
-      "maxStar": 3
-    },
-    {
-      "id": "paper_plane",
-      "name": "纸飞机",
-      "rarity": "bronze",
-      "baseCD": 3.0,
-      "price": 4,
-      "tags": ["haste", "tool"],
-      "effects": [
-        { "type": "haste", "value": 0.8, "target": "adjacent", "trigger": "onTrigger" }
-      ],
-      "heroAffinity": "stelle",
-      "maxStar": 3
-    },
-    {
-      "id": "caviar",
-      "name": "鱼子酱",
-      "rarity": "silver",
-      "baseCD": 4.0,
-      "price": 8,
-      "tags": ["damage", "crit", "food"],
-      "effects": [
-        { "type": "crit", "value": 2.0, "target": "enemy" },
-        { "type": "damage", "value": 20, "target": "enemy" }
-      ],
-      "heroAffinity": "jules",
-      "maxStar": 3
+      "maxStar": 3,
+      "description": "恢复15点生命值",
+      "iconPath": "items/soothing_heal"
     },
     {
       "id": "barrel",
       "name": "木桶",
-      "rarity": "silver",
+      "rarity": "rare",
       "baseCD": 5.0,
       "price": 7,
-      "tags": ["damage", "scaling"],
-      "effects": [
-        { "type": "damage", "value": 15, "target": "enemy" }
+      "shopAvailable": true,
+      "tags": [
+        "damage",
+        "scaling"
       ],
-      "maxStar": 3
+      "effects": [
+        {
+          "type": "damage",
+          "value": 15,
+          "target": "enemy",
+          "starScale": 0.5,
+          "desc": "基础伤害{value}×(1+场上装备数×0.1)，满格时×1.6"
+        },
+        {
+          "type": "scaling",
+          "value": 0.1,
+          "target": "enemy",
+          "scalingSource": "item_count",
+          "starScale": 0.0,
+          "desc": "每件场上装备额外+10%伤害缩放"
+        }
+      ],
+      "maxStar": 3,
+      "description": "造成{value}伤害，每件场上装备额外+10%伤害",
+      "iconPath": "items/barrel"
     },
     {
       "id": "aurora_dome",
       "name": "极光穹顶",
-      "rarity": "silver",
+      "rarity": "rare",
       "baseCD": 6.0,
       "price": 9,
-      "tags": ["control", "freeze"],
-      "effects": [
-        { "type": "freeze", "value": 2.0, "target": "enemy" }
+      "shopAvailable": true,
+      "tags": [
+        "control",
+        "freeze"
       ],
-      "maxStar": 3
+      "effects": [
+        {
+          "type": "freeze",
+          "value": 2.0,
+          "target": "enemy_fastest",
+          "duration": 2.0,
+          "starScale": 0.5,
+          "desc": "冻结敌方最快装备{value}秒"
+        }
+      ],
+      "maxStar": 3,
+      "description": "冻结敌方最快装备2秒",
+      "iconPath": "items/aurora_dome"
     },
     {
-      "id": "precision_caliper",
-      "name": "精密卡尺",
-      "rarity": "silver",
+      "id": "hot_sauce",
+      "name": "辣酱",
+      "rarity": "common",
       "baseCD": 3.5,
-      "price": 8,
-      "tags": ["tool", "haste"],
-      "effects": [
-        { "type": "haste", "value": 2.0, "target": "all_tools", "trigger": "onTrigger" }
+      "price": 4,
+      "shopAvailable": true,
+      "tags": [
+        "dot",
+        "burn",
+        "food"
       ],
-      "heroAffinity": "stelle",
-      "maxStar": 3
+      "effects": [
+        {
+          "type": "dot",
+          "value": 6,
+          "target": "enemy",
+          "dotType": "burn",
+          "duration": 3.0,
+          "starScale": 0.4,
+          "desc": "施加灼烧，每秒造成{value}点持续伤害（刷新覆盖，不叠层）"
+        }
+      ],
+      "maxStar": 3,
+      "description": "施加灼烧，每秒造成6点持续伤害",
+      "iconPath": "items/hot_sauce",
+      "heroAffinity": "jules"
+    },
+    {
+      "id": "caviar",
+      "name": "鱼子酱",
+      "rarity": "rare",
+      "baseCD": 4.0,
+      "price": 8,
+      "shopAvailable": true,
+      "tags": [
+        "damage",
+        "crit",
+        "food"
+      ],
+      "effects": [
+        {
+          "type": "crit",
+          "value": 2.0,
+          "target": "enemy",
+          "starScale": 0.25,
+          "desc": "暴击倍率×{value}，本效果无独立伤害"
+        },
+        {
+          "type": "damage",
+          "value": 20,
+          "target": "enemy",
+          "starScale": 0.5,
+          "desc": "暴击伤害{value}×crit倍率，朱尔斯food加成×1.25"
+        }
+      ],
+      "maxStar": 3,
+      "description": "造成20点暴击伤害（暴击倍率×2）",
+      "iconPath": "items/caviar",
+      "heroAffinity": "jules"
     },
     {
       "id": "chef_hat",
       "name": "厨师帽",
-      "rarity": "silver",
+      "rarity": "rare",
       "baseCD": 4.0,
       "price": 8,
-      "tags": ["food", "heal"],
-      "effects": [
-        { "type": "heal", "value": 20, "target": "self" }
+      "shopAvailable": true,
+      "tags": [
+        "food",
+        "heal"
       ],
-      "heroAffinity": "jules",
-      "maxStar": 3
+      "effects": [
+        {
+          "type": "heal",
+          "value": 20,
+          "target": "self",
+          "starScale": 0.6,
+          "desc": "恢复{value}点生命值，food标签享受朱尔斯被动"
+        }
+      ],
+      "maxStar": 3,
+      "description": "恢复20点生命值",
+      "iconPath": "items/chef_hat",
+      "heroAffinity": "jules"
+    },
+    {
+      "id": "gingerbread_house",
+      "name": "姜饼小屋",
+      "rarity": "epic",
+      "baseCD": 6.0,
+      "price": 12,
+      "shopAvailable": true,
+      "tags": [
+        "food"
+      ],
+      "effects": [
+        {
+          "type": "proc_chance",
+          "value": 0.3,
+          "target": "all_food",
+          "starScale": 0.5,
+          "desc": "当己方food装备触发时，{value×100}%概率令该food装备额外触发一次"
+        }
+      ],
+      "maxStar": 3,
+      "description": "己方food装备触发时，30%概率额外触发一次",
+      "iconPath": "items/gingerbread_house",
+      "heroAffinity": "jules"
+    },
+    {
+      "id": "feast_item",
+      "name": "盛宴",
+      "rarity": "legendary",
+      "baseCD": 8.0,
+      "price": 0,
+      "shopAvailable": false,
+      "tags": [
+        "food"
+      ],
+      "effects": [
+        {
+          "type": "buff_multiplier",
+          "value": 1.5,
+          "target": "all_food",
+          "duration": 15.0,
+          "starScale": 0.0,
+          "desc": "全场food装备效果×{value}，持续15秒"
+        }
+      ],
+      "maxStar": 3,
+      "description": "全场food效果×1.5，持续15秒",
+      "iconPath": "items/feast",
+      "heroAffinity": "jules"
+    },
+    {
+      "id": "serpent_fang",
+      "name": "蛇怪之牙",
+      "rarity": "common",
+      "baseCD": 4.0,
+      "price": 5,
+      "shopAvailable": true,
+      "tags": [
+        "dot",
+        "poison"
+      ],
+      "effects": [
+        {
+          "type": "dot",
+          "value": 8,
+          "target": "enemy",
+          "dotType": "poison",
+          "starScale": 0.4,
+          "desc": "施加中毒，每秒造成{value}点持续伤害（+1层/次，每次tick层数-1）"
+        }
+      ],
+      "maxStar": 3,
+      "description": "施加中毒，每秒造成8点持续伤害",
+      "iconPath": "items/serpent_fang",
+      "heroAffinity": "mak"
+    },
+    {
+      "id": "adrenaline_suit",
+      "name": "肾上腺素调节服",
+      "rarity": "rare",
+      "baseCD": 5.0,
+      "price": 9,
+      "shopAvailable": true,
+      "tags": [
+        "tool",
+        "heal"
+      ],
+      "effects": [
+        {
+          "type": "self_dot",
+          "value": 0.05,
+          "target": "self",
+          "dotType": "poison",
+          "starScale": 0.5,
+          "desc": "对自身造成当前HP×{value×100}%中毒伤害（不致死，最低保留1HP）"
+        },
+        {
+          "type": "heal",
+          "value": 10,
+          "target": "self",
+          "starScale": 0.6,
+          "desc": "每次触发后回复{value}点生命值"
+        }
+      ],
+      "maxStar": 3,
+      "description": "对自身造成5%HP中毒伤害，回复10点生命",
+      "iconPath": "items/adrenaline_suit",
+      "heroAffinity": "mak"
+    },
+    {
+      "id": "venom_heart",
+      "name": "毒龙之心",
+      "rarity": "legendary",
+      "baseCD": 10.0,
+      "price": 0,
+      "shopAvailable": false,
+      "tags": [
+        "dot",
+        "poison"
+      ],
+      "effects": [
+        {
+          "type": "unlock_cap",
+          "value": 0,
+          "target": "self",
+          "starScale": 0.0,
+          "desc": "解除poison层数上限限制（默认上限10层）"
+        },
+        {
+          "type": "scaling",
+          "value": 0.05,
+          "target": "enemy",
+          "scalingSource": "dot_stacks",
+          "starScale": 0.5,
+          "desc": "每层中毒使所有DOT伤害额外+{value×100}%"
+        }
+      ],
+      "maxStar": 3,
+      "description": "中毒层数无上限，每层DOT+5%",
+      "iconPath": "items/venom_heart",
+      "heroAffinity": "mak"
+    },
+    {
+      "id": "pencil_sharpener",
+      "name": "卷笔刀",
+      "rarity": "common",
+      "baseCD": 2.0,
+      "price": 5,
+      "shopAvailable": true,
+      "tags": [
+        "damage",
+        "tool"
+      ],
+      "effects": [
+        {
+          "type": "damage",
+          "value": 15,
+          "target": "enemy",
+          "starScale": 0.5,
+          "desc": "造成{value}点直接伤害"
+        }
+      ],
+      "maxStar": 3,
+      "description": "造成15点伤害",
+      "iconPath": "items/pencil_sharpener",
+      "heroAffinity": "stelle"
+    },
+    {
+      "id": "spring_fist",
+      "name": "弹簧拳",
+      "rarity": "common",
+      "baseCD": 3.0,
+      "price": 5,
+      "shopAvailable": true,
+      "tags": [
+        "damage",
+        "tool"
+      ],
+      "effects": [
+        {
+          "type": "damage",
+          "value": 25,
+          "target": "enemy",
+          "starScale": 0.5,
+          "desc": "造成{value}点直接伤害"
+        },
+        {
+          "type": "haste",
+          "value": 1.0,
+          "target": "adjacent",
+          "starScale": 0.3,
+          "desc": "相邻装备（左+右各1件）冷却减少{value}秒"
+        }
+      ],
+      "maxStar": 3,
+      "description": "造成25点伤害，相邻装备CD减少1秒",
+      "iconPath": "items/spring_fist",
+      "heroAffinity": "stelle"
+    },
+    {
+      "id": "lighter",
+      "name": "打火机",
+      "rarity": "common",
+      "baseCD": 4.0,
+      "price": 4,
+      "shopAvailable": true,
+      "tags": [
+        "haste",
+        "tool"
+      ],
+      "effects": [
+        {
+          "type": "haste",
+          "value": 1.5,
+          "target": "adjacent",
+          "starScale": 0.3,
+          "desc": "相邻装备（左+右各1件）冷却减少{value}秒"
+        }
+      ],
+      "maxStar": 3,
+      "description": "相邻装备冷却减少1.5秒",
+      "iconPath": "items/lighter",
+      "heroAffinity": "stelle"
+    },
+    {
+      "id": "cotton_engine",
+      "name": "棉花糖引擎",
+      "rarity": "common",
+      "baseCD": 6.0,
+      "price": 6,
+      "shopAvailable": true,
+      "tags": [
+        "haste",
+        "tool"
+      ],
+      "effects": [
+        {
+          "type": "haste",
+          "value": 1.0,
+          "target": "all_tools",
+          "starScale": 0.3,
+          "desc": "所有tool标签装备冷却减少{value}秒"
+        }
+      ],
+      "maxStar": 3,
+      "description": "所有工具装备冷却减少1秒",
+      "iconPath": "items/cotton_engine",
+      "heroAffinity": "stelle"
+    },
+    {
+      "id": "paper_plane",
+      "name": "纸飞机",
+      "rarity": "common",
+      "baseCD": 3.0,
+      "price": 4,
+      "shopAvailable": true,
+      "tags": [
+        "haste",
+        "tool"
+      ],
+      "effects": [
+        {
+          "type": "haste",
+          "value": 0.8,
+          "target": "random_tool",
+          "starScale": 0.3,
+          "desc": "随机1件tool标签装备冷却减少{value}秒"
+        }
+      ],
+      "maxStar": 3,
+      "description": "随机工具装备冷却减少0.8秒",
+      "iconPath": "items/paper_plane",
+      "heroAffinity": "stelle"
+    },
+    {
+      "id": "precision_caliper",
+      "name": "精密卡尺",
+      "rarity": "rare",
+      "baseCD": 3.5,
+      "price": 8,
+      "shopAvailable": true,
+      "tags": [
+        "tool",
+        "haste"
+      ],
+      "effects": [
+        {
+          "type": "haste",
+          "value": 2.0,
+          "target": "all_tools",
+          "starScale": 0.3,
+          "desc": "所有tool标签装备冷却减少{value}秒"
+        }
+      ],
+      "maxStar": 3,
+      "description": "所有工具装备冷却减少2秒",
+      "iconPath": "items/precision_caliper",
+      "heroAffinity": "stelle"
+    },
+    {
+      "id": "perpetual_core",
+      "name": "永动核心",
+      "rarity": "legendary",
+      "baseCD": 10.0,
+      "price": 0,
+      "shopAvailable": false,
+      "tags": [
+        "tool"
+      ],
+      "effects": [
+        {
+          "type": "cd_break",
+          "value": 0.1,
+          "target": "all_tools",
+          "starScale": 0.0,
+          "desc": "工具CD达到{CD_MIN}s后，可继续突破至{value}秒"
+        }
+      ],
+      "maxStar": 3,
+      "description": "工具CD达到0.3s后可突破至0.1s",
+      "iconPath": "items/perpetual_core",
+      "heroAffinity": "stelle"
     }
   ]
 }

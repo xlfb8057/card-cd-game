@@ -1,0 +1,30 @@
+{
+  "note": "Cocos 编辑器选中图片 → Sprite 组件 → 勾选 Slice → 设置 Border",
+  "frames": {
+    "frames/frame_common.png": {
+      "width": 120,
+      "height": 120,
+      "border": 12
+    },
+    "frames/frame_rare.png": {
+      "width": 120,
+      "height": 120,
+      "border": 12
+    },
+    "frames/frame_epic.png": {
+      "width": 120,
+      "height": 120,
+      "border": 12
+    },
+    "frames/frame_legendary.png": {
+      "width": 120,
+      "height": 120,
+      "border": 12
+    },
+    "popover/popover_bg.png": {
+      "width": 280,
+      "height": 200,
+      "border": 16
+    }
+  }
+}

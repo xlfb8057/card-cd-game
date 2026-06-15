@@ -24,6 +24,10 @@ export interface IHeroConfig {
   maxHP: number;
   passive: IHeroPassive;
   activeSkill: IHeroActiveSkill;
+  /** 被动说明（配置表 passive_desc） */
+  passiveDesc?: string;
+  /** 主动技能说明（配置表 active_desc） */
+  activeDesc?: string;
 }
 
 /** 角色配置表查询接口 */

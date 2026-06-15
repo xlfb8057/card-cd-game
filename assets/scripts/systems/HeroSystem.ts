@@ -9,6 +9,7 @@ import { EffectType } from '../config/ItemConfig';
 import { IHero, Hero } from '../models/Hero';
 import { IItemInstance } from '../models/ItemInstance';
 import { calculateRealCD } from '../utils/MathUtil';
+import { GAME_CONSTANTS } from '../config/GameConstants';
 
 /** 主动技能执行上下文（由 BattleSystem 注入） */
 export interface IHeroSkillContext {
@@ -17,6 +18,8 @@ export interface IHeroSkillContext {
   removeItem(item: IItemInstance): void;
   getPlayerHP(): number;
   setPlayerHP(hp: number): void;
+  /** 马克肾上腺素：施加自伤中毒（不经过 dot_boost 被动） */
+  applySelfPoison?(amount: number, sourceId: string): void;
 }
 
 /** HeroSystem 对外接口 */
@@ -33,6 +36,8 @@ export interface IHeroSystem {
   activateSkill(context: IHeroSkillContext): boolean;
   getRemainingSkillUses(): number;
   isOverloadActive(): boolean;
+  getDotBoostTimer(): number;
+  getFoodBoostTimer(): number;
   onOverloadEnd(callback: () => void): void;
 }
 
@@ -158,6 +163,14 @@ export class HeroSystem implements IHeroSystem {
     return this._overloadTimer > 0;
   }
 
+  getDotBoostTimer(): number {
+    return this._dotBoostTimer;
+  }
+
+  getFoodBoostTimer(): number {
+    return this._foodBoostTimer;
+  }
+
   onOverloadEnd(callback: () => void): void {
     this._overloadEndCallback = callback;
   }
@@ -221,11 +234,19 @@ export class HeroSystem implements IHeroSystem {
       return false;
     }
 
-    const selfDamage = Math.floor(this._hero.maxHP * 0.15);
     const currentHP = context.getPlayerHP();
-    const newHP = Math.max(1, currentHP - selfDamage);
+    const selfDamage = Math.floor(currentHP * 0.15);
+    const newHP = Math.max(
+      GAME_CONSTANTS.ADRENALINE_SELF_DAMAGE_MIN_HP,
+      currentHP - selfDamage,
+    );
+    const actualDamage = currentHP - newHP;
     context.setPlayerHP(newHP);
     this._hero.currentHP = newHP;
+
+    if (actualDamage > 0 && context.applySelfPoison) {
+      context.applySelfPoison(actualDamage, 'mak_adrenaline');
+    }
 
     this._dotBoostTimer = duration;
     this._eventBus.emit('hero_self_damage', {
