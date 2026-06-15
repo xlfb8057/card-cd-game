@@ -31,6 +31,7 @@ export interface IGameApp {
   initialize(): Promise<void>;
   selectHero(heroId: string): boolean;
   startNewGame(): void;
+  restartFromBeginning(): void;
   hasContinueSave(): boolean;
   continueGame(): boolean;
   getScene(): GameSceneType;
@@ -163,6 +164,13 @@ export class GameApp implements IGameApp {
     this._snapshots.clear();
     this._scene = 'battle';
     this._battleScene.startRound(1);
+  }
+
+  /** 清空进度并从第 1 关重新开始（保留当前角色） */
+  restartFromBeginning(): void {
+    this._session.clearAllProgress();
+    this.startNewGame();
+    this._eventBus.emit('game_restart', { heroId: this._heroId });
   }
 
   hasContinueSave(): boolean {

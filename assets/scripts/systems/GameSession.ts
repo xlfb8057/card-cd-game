@@ -18,6 +18,7 @@ export interface IGameSession {
   saveToDisk(phase: 'shop' | 'battle'): void;
   loadFromDisk(): ISaveGameState | null;
   applySaveState(state: ISaveGameState): void;
+  clearAllProgress(): void;
 }
 
 /**
@@ -89,6 +90,12 @@ export class GameSession implements IGameSession {
       state.loseStreak,
     );
     this._inventory.restoreFromSnapshot(state.equipped, state.backpack);
+  }
+
+  /** 清除磁盘存档与回合快照（重新开始用） */
+  clearAllProgress(): void {
+    this._saveManager.deleteSave();
+    this._snapshots.clear();
   }
 
   private _applySnapshot(snap: IGameSnapshot): void {

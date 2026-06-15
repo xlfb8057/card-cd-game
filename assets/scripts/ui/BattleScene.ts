@@ -64,6 +64,7 @@ export interface IBattleSettlementView {
   goldReward: number;
   canRetry: boolean;
   canEnterShop: boolean;
+  canRestart: boolean;
   message: string;
 }
 
@@ -394,6 +395,7 @@ export class BattleSceneController {
       goldReward: reward,
       canRetry: !won,
       canEnterShop: won,
+      canRestart: !won,
       message,
     };
 

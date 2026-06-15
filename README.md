@@ -53,6 +53,16 @@ npm run check:wechat-size
 
 在 Battle / shop 场景的 **Canvas** 上添加 **SafeAreaAdapter**，将 **HUD** 节点拖到 **Hud Root**。
 
+## 文档（第一阶段已交付）
+
+| 文档 | 说明 |
+|------|------|
+| [AI 开发规范](Docs/AI开发规范_第一阶段_v1.0.md) | Cursor/AI 编码约束、架构、绑定清单 |
+| [用户手册](Docs/用户手册_第一阶段_v1.0.md) | 预览、玩法、按钮说明 |
+| [需求验收](Docs/需求文档_第一阶段验收_v1.0.md) | Prompt 1–7 功能与验收结果 |
+| [配置数据说明](Docs/配置数据说明_v1.0.md) | items / heroes / enemies JSON 字段 |
+| [CHANGELOG](CHANGELOG.md) | 版本与提交记录 |
+
 ## 仓库
 
 https://github.com/xlfb8057/card-cd-game

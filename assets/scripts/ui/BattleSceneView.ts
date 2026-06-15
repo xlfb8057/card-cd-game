@@ -93,6 +93,9 @@ export class BattleSceneView extends Component {
   @property(Button)
   retryBtn: Button | null = null;
 
+  @property(Button)
+  restartBtn: Button | null = null;
+
   @property(Label)
   messageLabel: Label | null = null;
 
@@ -172,7 +175,6 @@ export class BattleSceneView extends Component {
       if (this.resultLabel) {
         this.resultLabel.string = '已回退，重新开战';
       }
-      // 延迟关闭，让玩家看见提示（MessageLabel 在 SettlementPanel 内）
       this.scheduleOnce(() => {
         if (this.settlementPanel) {
           this.settlementPanel.active = false;
@@ -184,6 +186,21 @@ export class BattleSceneView extends Component {
         this.resultLabel.string = '失败...\n无法回退（无快照）';
       }
     }
+  }
+
+  /** 重新开始：回到第 1 关，清空金币与装备 */
+  onRestartClick(): void {
+    const app = this._getApp();
+    if (!app) {
+      return;
+    }
+    app.restartFromBeginning();
+    this._settlementHintActive = false;
+    this._lastLogText = '';
+    if (this.settlementPanel) {
+      this.settlementPanel.active = false;
+    }
+    this._flashMessage('已重新开始：第 1 关');
   }
 
   private _getApp() {
@@ -201,6 +218,7 @@ export class BattleSceneView extends Component {
     this._onClick(this.rescueButtons[2], this.onRescueRepositionClick);
     this._onClick(this.enterShopBtn, this.onEnterShopClick);
     this._onClick(this.retryBtn, this.onRetryClick);
+    this._onClick(this.restartBtn, this.onRestartClick);
   }
 
   private _onClick(btn: Button | null, handler: () => void): void {
@@ -339,7 +357,8 @@ export class BattleSceneView extends Component {
       this._settlementHintActive = true;
       this._messageTimer = 0;
       if (settlement.canRetry) {
-        this.messageLabel.string = '点击「重试」回退到本回合准备阶段';
+        this.messageLabel.string =
+          '「重试」回退本回合 · 「重新开始」从第1关重来（清空金币装备）';
       } else if (settlement.canEnterShop) {
         this.messageLabel.string = '点击「进入商店」购买装备';
       } else {
@@ -353,6 +372,10 @@ export class BattleSceneView extends Component {
     if (this.retryBtn) {
       this.retryBtn.node.active = settlement.canRetry;
       this.retryBtn.interactable = settlement.canRetry;
+    }
+    if (this.restartBtn) {
+      this.restartBtn.node.active = settlement.canRestart;
+      this.restartBtn.interactable = settlement.canRestart;
     }
   }
 
