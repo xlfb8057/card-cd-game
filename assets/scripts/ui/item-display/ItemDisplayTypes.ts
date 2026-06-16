@@ -43,6 +43,8 @@ export interface ItemDisplayContext {
   shopIndex?: number;
   /** 图鉴预览星级（codex） */
   codexStar?: number;
+  /** 战斗已结束进入结算：隐藏 CD 进度与倒计时 */
+  battleSettled?: boolean;
   runtime: ItemDisplayRuntime;
 }
 
@@ -64,6 +66,8 @@ export interface IItemCardViewModel {
   showCdOverlay: boolean;
   cdProgress: number;
   cdText: string;
+  /** 显示剩余 CD 数字（战斗进行中且仍在冷却） */
+  showCdTime: boolean;
   cdAtMax: boolean;
   /** 仅 shop_for_sale 且可升星 */
   showMergeHint: boolean;

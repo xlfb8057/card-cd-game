@@ -19,3 +19,21 @@ alwaysApply: true
 - 配置：`assets/resources/config/`
 - 实现进度：`Docs/装备前端显示_实现进度_v4.md`
 - 装备 v4 需求：`Docs/技能/需求第四版/装备前端显示需求_v4.md`
+- **GM 指令说明**：`Docs/GM指令说明.md`（新增/修改 GM 时 **必须同步更新**）
+- **测试指令说明**：`Docs/测试指令说明.md`（新增/修改装备 CLI 测试或 `test:equipment*` / `verify:*` 脚本时 **必须同步更新**）
+
+## GM 指令文档（强制）
+
+凡在 `assets/scripts/dev/` 新增、修改或删除 GM 命令 / 按钮 / 快捷键，**必须同步更新** `Docs/GM指令说明.md`（命令表、按钮、快捷键、§6 行为、§9 变更记录），并保持 `DevGmBridge.ts` 中 `gm.help()` 文案与文档一致。
+
+## 装备 CLI 测试文档（强制）
+
+凡新增/修改装备展示逻辑（`assets/scripts/ui/item-display/`）、装备相关离线测试（`tools/equipment/`、`tools/verify-p*.ts`）或 `package.json` 中 `test:equipment*` / `verify:item-display` / `verify:all` 脚本：
+
+1. **必须**补充或更新 `tools/equipment/tests/*.test.ts` 并在 `registry.ts` 注册  
+2. **必须**同步更新 `Docs/测试指令说明.md`（命令表、套件 ID、§9 变更记录）  
+3. 改完代码后执行 `npm run test:equipment`（或对应子命令）确认通过
+
+## Cocos 编辑器教程输出（强制）
+
+凡说明 Cocos 挂接/预制体/场景配置步骤，必须遵守 **`.cursor/rules/cocos-editor-tutorial-format.mdc`**：标明面板与文件路径、创建项命名与父节点与类型、属性检查器赋值、拖放起止方向，以及 **拖入类型**（**Label 组件** / **Sprite 组件** / **节点** / **脚本组件** / **资源**）。多条绑定用「属性名 | 层级路径 | 拖入类型」三列表格。禁止模糊「拖进去」「绑一下」。

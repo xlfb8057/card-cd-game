@@ -47,6 +47,7 @@ export function buildItemContext(
     sold?: boolean;
     shopIndex?: number;
     codexStar?: number;
+    battleSettled?: boolean;
   },
 ): ItemDisplayContext {
   return {
@@ -57,6 +58,7 @@ export function buildItemContext(
     sold: options?.sold,
     shopIndex: options?.shopIndex,
     codexStar: options?.codexStar,
+    battleSettled: options?.battleSettled,
     runtime: buildItemDisplayRuntime(deps),
   };
 }

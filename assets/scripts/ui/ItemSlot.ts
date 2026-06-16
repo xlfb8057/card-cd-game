@@ -1,11 +1,10 @@
 /**
- * 装备格子 UI 视图模型
+ * 装备格子 UI 视图模型（Legacy 降级路径；战斗/商店优先 v4 ItemCardWidget）
  */
 
 import { IConfigTable } from '../core/ConfigTable';
 import { IItemInstance } from '../models/ItemInstance';
-import { getRarityColor, HASTE_MAX_COLOR } from '../utils/RarityUtil';
-import { CD_MIN } from '../utils/MathUtil';
+import { getRarityColor } from '../utils/RarityUtil';
 
 export interface IItemSlotView {
   position: number;
@@ -14,8 +13,11 @@ export interface IItemSlotView {
   cdText: string;
   starText: string;
   borderColor: string;
+  /** @deprecated v4 不再使用加速红框，恒为 false */
   isMaxHaste: boolean;
+  /** @deprecated v4 使用 CdReadyEffect 粒子，Legacy 不再显示 MAX 角标 */
   showMaxLabel: boolean;
+  /** @deprecated 已移除加速红脉冲 */
   pulseRed: boolean;
   scaleAnim: boolean;
   detailText: string;
@@ -26,17 +28,15 @@ export interface IItemSlotController {
   getView(): IItemSlotView;
   tickAnim(dt: number): void;
   triggerScaleAnim(): void;
-  setPulseRed(on: boolean): void;
+  /** @deprecated 无效果，保留接口兼容 */
+  setPulseRed(_on: boolean): void;
 }
-
-const HASTE_PULSE_THRESHOLD = 0.5;
 
 export class ItemSlotController implements IItemSlotController {
   private _item: IItemInstance | null = null;
   private _position = 0;
   private _scaleAnim = false;
   private _scaleAnimTimer = 0;
-  private _pulseRed = false;
 
   constructor(private readonly _configTable: IConfigTable) {}
 
@@ -65,8 +65,6 @@ export class ItemSlotController implements IItemSlotController {
     const config = this._configTable.getItem(this._item.configId);
     const rarity = config?.rarity ?? 'common';
     const cd = this._item.currentCD;
-    const isMaxHaste = cd <= HASTE_PULSE_THRESHOLD && cd > CD_MIN;
-    const atFloor = cd <= CD_MIN + 0.01;
 
     return {
       position: this._position,
@@ -74,14 +72,10 @@ export class ItemSlotController implements IItemSlotController {
       name: config?.name ?? this._item.configId,
       cdText: cd.toFixed(1),
       starText: '★'.repeat(this._item.star),
-      borderColor: atFloor
-        ? HASTE_MAX_COLOR
-        : isMaxHaste
-          ? HASTE_MAX_COLOR
-          : getRarityColor(rarity),
-      isMaxHaste,
-      showMaxLabel: atFloor,
-      pulseRed: this._pulseRed || isMaxHaste,
+      borderColor: getRarityColor(rarity),
+      isMaxHaste: false,
+      showMaxLabel: false,
+      pulseRed: false,
       scaleAnim: this._scaleAnim,
       detailText: config
         ? config.effects.map((e) => `${e.type}:${e.value}`).join(' | ')
@@ -103,7 +97,7 @@ export class ItemSlotController implements IItemSlotController {
     this._scaleAnimTimer = 0.2;
   }
 
-  setPulseRed(on: boolean): void {
-    this._pulseRed = on;
+  setPulseRed(_on: boolean): void {
+    // 已移除「加速变红框」外显
   }
 }

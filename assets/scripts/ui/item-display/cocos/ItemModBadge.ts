@@ -13,10 +13,20 @@ export class ItemModBadge extends Component {
 
   apply(visible: boolean, modNames: string[] = []): void {
     this.node.active = visible;
-    if (!visible || !this.modLabel) {
+    if (!visible) {
+      if (this.modLabel?.node) {
+        this.modLabel.node.active = false;
+      }
       return;
     }
-    this.modLabel.string =
+
+    const label = this.modLabel ?? this.getComponentInChildren(Label);
+    if (!label) {
+      return;
+    }
+
+    label.node.active = true;
+    label.string =
       modNames.length > 0 ? `[改装] ${modNames[0]}` : '[改装]';
   }
 }

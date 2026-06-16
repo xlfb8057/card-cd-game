@@ -22,7 +22,8 @@ import { ItemDisplayController } from './item-display/ItemDisplayController';
 import { ItemCardWidget } from './item-display/cocos/ItemCardWidget';
 import { ModSelectPanel } from './item-display/cocos/ModSelectPanel';
 import { modSelectPresenter } from './item-display/ModSelectPresenter';
-import { IItemInstance } from '../models/ItemInstance';
+import { MAX_ROUND } from '../config/RoundConfig';
+import { formatHpDisplay } from '../utils/MathUtil';
 
 const { ccclass, property } = _decorator;
 
@@ -81,28 +82,48 @@ export class ShopSceneView extends Component {
 
   private _messageTimer = 0;
   private _modPickWired = false;
+  private _bindingsResolved = false;
+  private _itemDisplayInited = false;
+  private _shopCardsAssigned = false;
+  private _legacyEquipHidden = false;
 
   start() {
     if (!this.bootstrapNode) {
       this.bootstrapNode = this.node;
     }
+    this._resolveViewBindings();
     this._bindButtons();
     this._flashMessage('');
-    this._refreshAll();
     this.scheduleOnce(() => this._refreshAll(), 0);
   }
 
   onEnable() {
-    this._refreshAll();
+    this._resolveViewBindings();
+    this._itemDisplayInited = false;
+    const app = this._getApp();
+    if (app?.isGameComplete()) {
+      this._refreshGameComplete(app);
+    } else {
+      this._refreshAll();
+    }
+  }
+
+  onDisable(): void {
+    this._itemDisplayInited = false;
+    this._legacyEquipHidden = false;
   }
 
   update(dt: number) {
     const app = this._getApp();
-    if (!app || app.getScene() !== 'shop') {
+    if (!app) {
       return;
     }
 
-    this._refreshAll();
+    if (app.isGameComplete()) {
+      this._refreshGameComplete(app);
+    } else if (app.getScene() === 'shop') {
+      this._refreshAll();
+    }
 
     if (this._messageTimer > 0) {
       this._messageTimer -= dt;
@@ -165,6 +186,12 @@ export class ShopSceneView extends Component {
     if (!app) {
       return;
     }
+    if (app.isGameComplete()) {
+      this.itemDisplay?.hideDetail();
+      app.restartFromBeginning();
+      director.loadScene(SCENE_BATTLE);
+      return;
+    }
     if (app.getShop().hasModOffer()) {
       this._flashMessage('请先完成改装选择');
       return;
@@ -189,6 +216,7 @@ export class ShopSceneView extends Component {
     if (!app || app.getScene() !== 'shop') {
       return;
     }
+    this._resolveViewBindings();
     const shop = app.getShop();
     this._refreshHUD(shop.getHUD());
     if (shop.hasModOffer()) {
@@ -205,18 +233,65 @@ export class ShopSceneView extends Component {
   }
 
   private _useItemDisplayForEquip(): boolean {
-    return (
-      this.itemDisplay !== null &&
-      this.itemDisplay.slotCards.length >= 6
-    );
+    if (!this.itemDisplay) {
+      return false;
+    }
+    const bound = this.itemDisplay.slotCards.filter((c) => c != null).length;
+    return bound >= 6;
   }
 
   private _useShopCardWidgets(): boolean {
-    return (
-      this.itemDisplay !== null &&
-      (this.shopCardWidgets.length >= 6 ||
-        this.itemDisplay.shopCards.length >= 6)
-    );
+    if (!this.itemDisplay) {
+      return false;
+    }
+    const shopBound =
+      this.shopCardWidgets.filter((c) => c != null).length >= 6 ||
+      this.itemDisplay.shopCards.filter((c) => c != null).length >= 6;
+    return shopBound;
+  }
+
+  private _resolveViewBindings(): void {
+    if (this._bindingsResolved) {
+      return;
+    }
+
+    const canvas = this.node.scene?.getChildByName('Canvas') ?? this.node;
+    if (!this.itemDisplay) {
+      const root = canvas.getChildByName('ItemDisplayRoot');
+      this.itemDisplay = root?.getComponent(ItemDisplayController) ?? null;
+    }
+
+    if (this.shopCardWidgets.filter((w) => w != null).length < 6) {
+      const found: ItemCardWidget[] = [];
+      this._collectShopCardWidgets(canvas, found);
+      found.sort((a, b) => a.node.name.localeCompare(b.node.name));
+      if (found.length >= 6) {
+        this.shopCardWidgets = found.slice(0, 6);
+      }
+    }
+
+    if (!this.modSelectPanel) {
+      const panel =
+        canvas.getChildByName('ModSelectPanel') ??
+        canvas.getChildByName('ModSelectRoot');
+      this.modSelectPanel = panel?.getComponent(ModSelectPanel) ?? null;
+    }
+
+    if (this.itemDisplay || this.shopCardWidgets.filter((w) => w != null).length >= 6) {
+      this._bindingsResolved = true;
+    }
+  }
+
+  private _collectShopCardWidgets(root: Node, out: ItemCardWidget[]): void {
+    if (root.name.startsWith('ShopCardWidget_')) {
+      const widget = root.getComponent(ItemCardWidget);
+      if (widget) {
+        out.push(widget);
+      }
+    }
+    for (const child of root.children) {
+      this._collectShopCardWidgets(child, out);
+    }
   }
 
   private _refreshItemDisplay(
@@ -225,8 +300,12 @@ export class ShopSceneView extends Component {
     if (!this.itemDisplay) {
       return;
     }
-    this.itemDisplay.setDeps(app.getItemDisplayDeps());
-    this.itemDisplay.ensureToastListener((msg) => this._flashMessage(msg));
+
+    if (!this._itemDisplayInited) {
+      this.itemDisplay.setDeps(app.getItemDisplayDeps());
+      this.itemDisplay.ensureToastListener((msg) => this._flashMessage(msg));
+      this._itemDisplayInited = true;
+    }
 
     if (this._useItemDisplayForEquip()) {
       const items: (IItemInstance | null)[] = [];
@@ -246,21 +325,35 @@ export class ShopSceneView extends Component {
         sold: c.sold,
         shopIndex: c.index,
       }));
-      if (this.shopCardWidgets.length >= 6) {
+      if (this.shopCardWidgets.length >= 6 && !this._shopCardsAssigned) {
         this.itemDisplay.shopCards = this.shopCardWidgets;
+        this._shopCardsAssigned = true;
       }
       this.itemDisplay.refreshShopCards(entries);
     }
   }
 
   private _setLegacyEquipVisible(visible: boolean): void {
+    if (!visible && this._legacyEquipHidden) {
+      return;
+    }
+    if (visible) {
+      this._legacyEquipHidden = false;
+    }
+
     for (let i = 0; i < 6; i++) {
-      if (this.equipSlotLabels[i]) {
-        this.equipSlotLabels[i]!.node.active = visible;
+      const labelNode = this.equipSlotLabels[i]?.node;
+      if (labelNode?.isValid) {
+        labelNode.active = visible;
       }
-      if (this.equipSlotBorders[i]) {
-        this.equipSlotBorders[i]!.node.active = visible;
+      const borderNode = this.equipSlotBorders[i]?.node;
+      if (borderNode?.isValid) {
+        borderNode.active = visible;
       }
+    }
+
+    if (!visible) {
+      this._legacyEquipHidden = true;
     }
   }
 
@@ -280,12 +373,17 @@ export class ShopSceneView extends Component {
     if (this.modSelectPanel) {
       this.modSelectPanel.show(offer.itemName, offer.star, cards);
       this._wireModPickOnce(app);
-      for (let i = 0; i < this.shopCardLabels.length; i++) {
-        if (this.shopCardLabels[i]) {
-          this.shopCardLabels[i].node.active = false;
+      for (let i = 0; i < 6; i++) {
+        if (this.shopCardLabels[i]?.node?.isValid) {
+          this.shopCardLabels[i]!.node.active = false;
         }
-        if (this.shopCardWidgets[i]) {
-          this.shopCardWidgets[i].node.active = false;
+        if (this.shopCardWidgets[i]?.node?.isValid) {
+          this.shopCardWidgets[i]!.node.active = false;
+        }
+        const buyBtn = this.shopCardButtons[i];
+        if (buyBtn?.node?.isValid) {
+          buyBtn.node.active = false;
+          buyBtn.interactable = false;
         }
       }
     } else {
@@ -323,18 +421,33 @@ export class ShopSceneView extends Component {
     for (let i = 0; i < 6; i++) {
       const lbl = this.shopCardLabels[i];
       const btn = this.shopCardButtons[i];
+      const widget = this.shopCardWidgets[i];
       const choice = offer.choices[i];
+
+      if (widget?.node) {
+        widget.node.active = false;
+      }
+
       if (!lbl) {
         continue;
       }
+      lbl.node.active = true;
       if (choice) {
         lbl.string = `[改装] ${choice.name}\n${choice.description}`;
         if (btn) {
+          btn.node.active = true;
           btn.interactable = true;
         }
-      } else {
-        lbl.string = i < 3 ? '—' : '请先选改装';
+      } else if (i < offer.choices.length) {
+        lbl.string = '—';
         if (btn) {
+          btn.node.active = true;
+          btn.interactable = false;
+        }
+      } else {
+        lbl.node.active = false;
+        if (btn) {
+          btn.node.active = false;
           btn.interactable = false;
         }
       }
@@ -375,7 +488,7 @@ export class ShopSceneView extends Component {
       this.roundLabel.string = `第 ${hud.round} 回合 · 商店`;
     }
     if (this.hpLabel) {
-      this.hpLabel.string = `HP ${hud.hp}/${hud.maxHP}`;
+      this.hpLabel.string = `HP ${formatHpDisplay(hud.hp)}/${formatHpDisplay(hud.maxHP)}`;
     }
     if (this.goldLabel) {
       this.goldLabel.string = `金币 ${hud.gold}`;
@@ -394,11 +507,15 @@ export class ShopSceneView extends Component {
       const btn = this.shopCardButtons[i];
       const widget = this.shopCardWidgets[i];
 
-      if (lbl) {
+      if (lbl?.node?.isValid) {
         lbl.node.active = !useWidgets;
       }
-      if (widget) {
+      if (widget?.node?.isValid) {
         widget.node.active = useWidgets;
+      }
+
+      if (btn?.node?.isValid) {
+        btn.node.active = true;
       }
 
       if (!card || !lbl || useWidgets) {
@@ -468,5 +585,76 @@ export class ShopSceneView extends Component {
       this.messageLabel.string = text;
     }
     this._messageTimer = text ? 2 : 0;
+  }
+
+  /** 第 5 关胜利后：GameApp 为 gameover，但仍加载 shop 场景展示通关页 */
+  private _refreshGameComplete(
+    app: NonNullable<ReturnType<ShopSceneView['_getApp']>>,
+  ): void {
+    this._resolveViewBindings();
+    const s = app.getState().getState();
+
+    if (this.roundLabel) {
+      this.roundLabel.string = `恭喜通关！（${MAX_ROUND} 关）`;
+    }
+    if (this.hpLabel) {
+      this.hpLabel.string = `HP ${formatHpDisplay(s.hp)}/${formatHpDisplay(s.maxHP)}`;
+    }
+    if (this.goldLabel) {
+      this.goldLabel.string = `金币 ${s.gold}`;
+    }
+    if (this.refreshCostLabel) {
+      this.refreshCostLabel.string = '';
+    }
+    if (this.backpackLabel) {
+      const names = app.getInventory().getBackpack().map((item) => {
+        const cfg = app.getItemDisplayDeps().configTable.getItem(item.configId);
+        return cfg?.name ?? item.configId;
+      });
+      this.backpackLabel.string =
+        names.length > 0 ? `背包：${names.join('、')}` : '背包：（空）';
+    }
+
+    this.modSelectPanel?.hide();
+
+    for (let i = 0; i < 6; i++) {
+      const lbl = this.shopCardLabels[i];
+      if (lbl?.node?.isValid) {
+        lbl.node.active = false;
+      }
+      const btn = this.shopCardButtons[i];
+      if (btn?.node?.isValid) {
+        btn.node.active = false;
+        btn.interactable = false;
+      }
+      const widget = this.shopCardWidgets[i];
+      if (widget?.node?.isValid) {
+        widget.node.active = false;
+      }
+    }
+
+    if (this.refreshBtn?.node?.isValid) {
+      this.refreshBtn.node.active = false;
+      this.refreshBtn.interactable = false;
+    }
+    if (this.startBattleBtn?.node?.isValid) {
+      this.startBattleBtn.node.active = true;
+      this.startBattleBtn.interactable = true;
+      const lbl = this.startBattleBtn.getComponentInChildren(Label);
+      if (lbl) {
+        lbl.string = '重新开始';
+      }
+    }
+
+    if (this.messageLabel) {
+      this.messageLabel.string =
+        '你已击败全部敌人！点击「重新开始」从第 1 关再来一局。';
+      this._messageTimer = 0;
+    }
+
+    this._refreshItemDisplay(app);
+    if (!this._useItemDisplayForEquip()) {
+      this._refreshEquipSlots(app.getShop().getEquipSlotViews());
+    }
   }
 }

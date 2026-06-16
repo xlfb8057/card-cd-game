@@ -6,7 +6,6 @@
 import { EffectType, IItemConfig, IItemEffect } from '../../config/ItemConfig';
 import { IItemInstance } from '../../models/ItemInstance';
 import { calcStarValue, getEffectStarScale } from '../../utils/StarCalculator';
-import { GAME_CONSTANTS } from '../../config/GameConstants';
 import { ItemDisplayRuntime, IValuePair } from './ItemDisplayTypes';
 import { formatDisplayNumber } from './RarityDisplayUtil';
 
@@ -149,15 +148,27 @@ export function toValuePair(base: number, effective: number): IValuePair {
 export function computeDisplayBaseCd(
   config: IItemConfig,
   runtime: ItemDisplayRuntime,
+  instance?: IItemInstance | null,
 ): number {
   let cd = config.baseCD;
   if (runtime.heroSystem) {
     cd = runtime.heroSystem.getModifiedCD(config.baseCD, config.tags);
   }
+  if (
+    instance &&
+    runtime.heroSystem?.isOverloadActive() &&
+    config.tags.includes('tool') &&
+    instance.currentCD > CD_READY_EPSILON
+  ) {
+    cd = Math.max(cd, instance.currentCD);
+  }
   return Math.round(cd * 10) / 10;
 }
 
-/** CD overlay 进度 0~1（1 = 满 CD 待触发） */
+/** CD 是否归零可触发（与 ItemInstance.isReady / CDSystem 一致） */
+export const CD_READY_EPSILON = 0.01;
+
+/** CD overlay 进度 0~1（1 = 仍在冷却，0 = 已就绪） */
 export function computeCdProgress(
   instance: IItemInstance,
   baseCd: number,
@@ -165,14 +176,13 @@ export function computeCdProgress(
   if (baseCd <= 0) {
     return 0;
   }
-  const minCd = GAME_CONSTANTS.CD_MIN;
-  const atMax = instance.currentCD <= minCd + 0.01;
-  if (atMax) {
+  if (instance.currentCD <= CD_READY_EPSILON) {
     return 0;
   }
   return Math.max(0, Math.min(1, instance.currentCD / baseCd));
 }
 
+/** 展示「MAX」角标：仅 currentCD 归零时，不是 CD_MIN（加速下限） */
 export function isCdAtFloor(instance: IItemInstance): boolean {
-  return instance.currentCD <= GAME_CONSTANTS.CD_MIN + 0.01;
+  return instance.currentCD <= CD_READY_EPSILON;
 }

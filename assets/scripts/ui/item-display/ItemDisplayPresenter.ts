@@ -30,7 +30,16 @@ import {
   computeDisplayBaseCd,
   computeCdProgress,
   isCdAtFloor,
+  CD_READY_EPSILON,
 } from './ItemValueCalculator';
+import { IMergeHint } from './ItemDisplayTypes';
+
+const NO_MERGE_HINT: IMergeHint = {
+  canMerge: false,
+  mergeTarget: 'none',
+  currentStar: 1,
+  nextStar: 2,
+};
 
 export class ItemDisplayPresenter {
   buildCard(ctx: ItemDisplayContext): IItemCardViewModel {
@@ -41,15 +50,23 @@ export class ItemDisplayPresenter {
 
     const instance = ctx.instance ?? null;
     const star = resolveDisplayStar(instance, ctx.kind, ctx.codexStar);
-    const mergeHint = mergeHintResolver.getMergeHint(ctx);
+    const mergeHint =
+      ctx.kind === 'shop_for_sale' || ctx.kind === 'backpack'
+        ? mergeHintResolver.getMergeHint(ctx)
+        : NO_MERGE_HINT;
     const modNames = this._resolveModNames(instance, ctx);
     const tagIcons = getTagsDisplay(config.tags);
 
-    const showCd = ctx.kind === 'battle_equipped' && instance !== null;
-    const baseCd = computeDisplayBaseCd(config, ctx.runtime);
+    const showCd =
+      ctx.kind === 'battle_equipped' &&
+      instance !== null &&
+      ctx.battleSettled !== true;
+    const baseCd = computeDisplayBaseCd(config, ctx.runtime, instance);
     const cdProgress =
       showCd && instance ? computeCdProgress(instance, baseCd) : 0;
     const cdAtMax = showCd && instance ? isCdAtFloor(instance) : false;
+    const cdRemaining =
+      showCd && instance ? Math.max(0, instance.currentCD) : 0;
 
     const sold = ctx.sold === true;
     const clickable = !sold;
@@ -57,10 +74,11 @@ export class ItemDisplayPresenter {
     const showMergeHint =
       ctx.kind === 'shop_for_sale' && !sold && mergeHint.canMerge;
 
+    /** 下一星闪烁仅商店待购卡；战斗/详情高亮由 ItemDisplayController 单独控制 */
     const mergeStarPulse =
+      ctx.kind === 'shop_for_sale' &&
       mergeHint.canMerge &&
-      mergeHint.mergeTarget === 'equipped' &&
-      ctx.kind !== 'backpack';
+      mergeHint.mergeTarget === 'equipped';
 
     return {
       configId: config.id,
@@ -79,8 +97,9 @@ export class ItemDisplayPresenter {
       modNames,
       showCdOverlay: showCd,
       cdProgress,
-      cdText:
-        showCd && instance ? formatDisplayNumber(instance.currentCD) : '',
+      cdText: showCd && instance ? formatDisplayNumber(cdRemaining) : '',
+      showCdTime:
+        showCd && instance !== null && cdRemaining > CD_READY_EPSILON,
       cdAtMax,
       showMergeHint,
       mergeHintText: showMergeHint ? '可升星' : '',
@@ -130,7 +149,7 @@ export class ItemDisplayPresenter {
     const isPreview =
       ctx.kind === 'shop_for_sale' || ctx.kind === 'backpack';
 
-    const baseCd = computeDisplayBaseCd(config, ctx.runtime);
+    const baseCd = computeDisplayBaseCd(config, ctx.runtime, instance);
     const sellPrice = computeSellPrice(config.price, config.sellPrice);
 
     return {
@@ -269,6 +288,7 @@ function emptyCard(configId: string): IItemCardViewModel {
     showCdOverlay: false,
     cdProgress: 0,
     cdText: '',
+    showCdTime: false,
     cdAtMax: false,
     showMergeHint: false,
     mergeHintText: '',

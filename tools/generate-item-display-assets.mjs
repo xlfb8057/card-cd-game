@@ -233,6 +233,10 @@ function main() {
   drawCdOverlay(cdOverlay);
   writePng(cdOverlay, path.join(OUT_ROOT, 'overlays', 'cd_overlay_bar.png'));
 
+  const cdParticle = createPng(16, 16);
+  fillRect(cdParticle, 4, 4, 8, 8, [255, 213, 79, 255]);
+  writePng(cdParticle, path.join(OUT_ROOT, 'overlays', 'cd_ready_particle.png'));
+
   const cdMax = createPng(32, 16);
   drawCdMaxBadge(cdMax);
   writePng(cdMax, path.join(OUT_ROOT, 'overlays', 'cd_max_badge.png'));

@@ -7,8 +7,9 @@ import { IEventBus } from '../core/EventBus';
 import { IConfigTable } from '../core/ConfigTable';
 import { IItemConfig, EffectTarget } from '../config/ItemConfig';
 import { GAME_CONSTANTS } from '../config/GameConstants';
-import { IItemInstance } from '../models/ItemInstance';
+import { calculateRealCD, roundBattleHp } from '../utils/MathUtil';
 import { IEnemy } from '../models/Enemy';
+import { IItemInstance } from '../models/ItemInstance';
 import { CDSystem, ICDSystem } from './CDSystem';
 import { IHeroSystem, IHeroSkillContext } from './HeroSystem';
 import { DotSystem, IDotSystem, IDotDamageTarget } from './DotSystem';
@@ -19,7 +20,6 @@ import {
 import { ModSystem, IModSystem } from './ModSystem';
 import { BuffSystem, IBuffSystem } from './BuffSystem';
 import { ProcChanceSystem, IProcChanceSystem } from './ProcChanceSystem';
-import { calculateRealCD } from '../utils/MathUtil';
 
 export interface IBattleSystemDeps {
   eventBus: IEventBus;
@@ -81,6 +81,8 @@ export interface IBattleSystem {
   triggerItemImmediately(item: IItemInstance): void;
   removeItem(item: IItemInstance): void;
   getItems(): IItemInstance[];
+  /** 敌人身上 DOT 总层数（装备 scaling / 详情展示用） */
+  getEnemyDotStacks(): number;
   applyEmergencyCharge(item: IItemInstance): void;
   swapEquipped(posA: number, posB: number): boolean;
   pauseForReposition(duration: number): void;
@@ -261,6 +263,11 @@ export class BattleSystem implements IBattleSystem {
 
   getItems(): IItemInstance[] {
     return [...this._items];
+  }
+
+  getEnemyDotStacks(): number {
+    const enemyId = this._enemy?.configId ?? 'enemy';
+    return this._dotSystem?.getTotalStacks(enemyId) ?? 0;
   }
 
   applyEmergencyCharge(item: IItemInstance): void {
@@ -612,7 +619,7 @@ export class BattleSystem implements IBattleSystem {
         getHP: () => this._playerHP,
         applyDotDamage: (amount) => {
           const before = this._playerHP;
-          this._playerHP = Math.max(0, this._playerHP - amount);
+          this._playerHP = roundBattleHp(this._playerHP - amount);
           const dealt = before - this._playerHP;
           if (dealt > 0) {
             this._eventBus.emit<IDamageDealtPayload>('damage_dealt', {

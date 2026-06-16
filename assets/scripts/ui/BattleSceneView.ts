@@ -6,7 +6,6 @@
 import {
   _decorator,
   Button,
-  Color,
   Component,
   director,
   Label,
@@ -18,11 +17,12 @@ import {
 import { GameBootstrap } from '../GameBootstrap';
 import { getGameApp } from '../core/GameAppHolder';
 import { SCENE_SHOP } from '../config/SceneNames';
+import { MAX_ROUND } from '../config/RoundConfig';
 import { BattleLogController } from './BattleLog';
 import { IBattleHUDView, IBattleSettlementView, BattleScenePhase } from './BattleScene';
-import { IItemSlotView } from './ItemSlot';
 import { IRescueButtonView } from './RescuePanel';
 import { IBattleLogEntry } from './BattleLog';
+import { formatHpDisplay } from '../utils/MathUtil';
 import { ItemDisplayController } from './item-display/ItemDisplayController';
 import { IItemInstance } from '../models/ItemInstance';
 
@@ -77,9 +77,6 @@ export class BattleSceneView extends Component {
   @property(ScrollView)
   logScrollView: ScrollView | null = null;
 
-  @property({ type: [Button] })
-  rescueButtons: Button[] = [];
-
   @property({ type: [Label] })
   rescueButtonLabels: Label[] = [];
 
@@ -89,15 +86,6 @@ export class BattleSceneView extends Component {
   @property(Label)
   resultLabel: Label | null = null;
 
-  @property(Button)
-  enterShopBtn: Button | null = null;
-
-  @property(Button)
-  retryBtn: Button | null = null;
-
-  @property(Button)
-  restartBtn: Button | null = null;
-
   @property(Label)
   messageLabel: Label | null = null;
 
@@ -105,15 +93,26 @@ export class BattleSceneView extends Component {
   @property(ItemDisplayController)
   itemDisplay: ItemDisplayController | null = null;
 
+  private _rescueButtons: Button[] = [];
+  private _enterShopBtn: Button | null = null;
+  private _retryBtn: Button | null = null;
+  private _restartBtn: Button | null = null;
+  private _buttonsBound = false;
+
   private _lastLogText = '';
   private _messageTimer = 0;
   /** 结算面板打开期间保持提示，不被计时器清掉 */
   private _settlementHintActive = false;
+  private _itemDisplayInited = false;
+  private _legacySlotsHidden = false;
+  private _bindingsResolved = false;
 
   start() {
     if (!this.bootstrapNode) {
       this.bootstrapNode = this.node;
     }
+    this._resolveViewBindings();
+    this._resolveActionButtons();
     this._bindButtonEvents();
     if (this.settlementPanel) {
       this.settlementPanel.active = false;
@@ -121,6 +120,12 @@ export class BattleSceneView extends Component {
     if (this.messageLabel) {
       this.messageLabel.string = '';
     }
+    this._initItemDisplay();
+  }
+
+  onDisable(): void {
+    this._itemDisplayInited = false;
+    this._legacySlotsHidden = false;
   }
 
   update(_dt: number) {
@@ -129,18 +134,25 @@ export class BattleSceneView extends Component {
       return;
     }
 
+    if (!this._bindingsResolved) {
+      this._resolveViewBindings();
+    }
+
     const battle = app.getBattle();
     this._refreshHUD(battle.getHUD());
-    if (this.itemDisplay) {
-      this._refreshItemDisplay(app);
-      this._setLegacySlotsVisible(false);
-    } else {
-      this._refreshSlots(battle.getItemSlotViews());
-      this._setLegacySlotsVisible(true);
-    }
+    // 日志 / 救援 / 结算优先刷新，避免装备展示异常时整帧 UI 卡死
     this._refreshLog(battle.getLogEntries());
     this._refreshRescue(battle.getRescueButtons());
     this._refreshSettlement(battle.getPhase(), battle.getSettlement());
+
+    if (this._useItemDisplay()) {
+      try {
+        this._refreshItemDisplay(app);
+      } catch (err) {
+        console.error('[BattleSceneView] item display refresh failed', err);
+      }
+    }
+    this._setLegacySlotsVisible(false);
 
     if (this._messageTimer > 0) {
       this._messageTimer -= _dt;
@@ -225,18 +237,62 @@ export class BattleSceneView extends Component {
   }
 
   private _bindButtonEvents(): void {
-    this._onClick(this.rescueButtons[0], this.onRescueChargeClick);
-    this._onClick(this.rescueButtons[1], this.onRescueOverloadClick);
-    this._onClick(this.rescueButtons[2], this.onRescueRepositionClick);
-    this._onClick(this.enterShopBtn, this.onEnterShopClick);
-    this._onClick(this.retryBtn, this.onRetryClick);
-    this._onClick(this.restartBtn, this.onRestartClick);
+    if (this._buttonsBound) {
+      return;
+    }
+    this._buttonsBound = true;
+
+    this._onClick(this._rescueButtons[0], this.onRescueChargeClick);
+    this._onClick(this._rescueButtons[1], this.onRescueOverloadClick);
+    this._onClick(this._rescueButtons[2], this.onRescueRepositionClick);
+    this._onClick(this._enterShopBtn, this.onEnterShopClick);
+    this._onClick(this._retryBtn, this.onRetryClick);
+    this._onClick(this._restartBtn, this.onRestartClick);
+  }
+
+  /** 按节点名解析按钮，避免 @property(Button) 与节点 Button 重复注册 */
+  private _resolveActionButtons(): void {
+    this._enterShopBtn = this._findButton('EnterShopBtn');
+    this._retryBtn = this._findButton('RetryBtn');
+    this._restartBtn = this._findButton('RestartBtn');
+    this._rescueButtons = ['RescueBtn1', 'RescueBtn2', 'RescueBtn3']
+      .map((name) => this._findButton(name))
+      .filter((btn): btn is Button => btn != null);
+
+    if (this.rescueButtonLabels.length === 0) {
+      this.rescueButtonLabels = ['RescueBtn1', 'RescueBtn2', 'RescueBtn3']
+        .map((name) => this._findLabel(name))
+        .filter((lbl): lbl is Label => lbl != null);
+    }
+  }
+
+  private _findButton(nodeName: string): Button | null {
+    const node = this._findNodeByName(nodeName);
+    return node?.getComponent(Button) ?? null;
+  }
+
+  private _findLabel(buttonNodeName: string): Label | null {
+    const btnNode = this._findNodeByName(buttonNodeName);
+    return btnNode?.getComponentInChildren(Label) ?? null;
+  }
+
+  private _findNodeByName(name: string): Node | null {
+    const stack: Node[] = [this.node];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (current.name === name) {
+        return current;
+      }
+      stack.push(...current.children);
+    }
+    return null;
   }
 
   private _onClick(btn: Button | null, handler: () => void): void {
-    if (!btn) {
+    if (!btn?.node?.isValid) {
       return;
     }
+    btn.node.off(Button.EventType.CLICK, handler, this);
     btn.node.on(Button.EventType.CLICK, handler, this);
   }
 
@@ -245,14 +301,17 @@ export class BattleSceneView extends Component {
       this.roundLabel.string = `第 ${hud.round} 回合`;
     }
     if (this.playerHPLabel) {
-      const shield = hud.playerShield > 0 ? ` (+${hud.playerShield}盾)` : '';
-      this.playerHPLabel.string = `${hud.playerHP}/${hud.playerMaxHP}${shield}`;
+      const shield =
+        hud.playerShield > 0
+          ? ` (+${formatHpDisplay(hud.playerShield)}盾)`
+          : '';
+      this.playerHPLabel.string = `${formatHpDisplay(hud.playerHP)}/${formatHpDisplay(hud.playerMaxHP)}${shield}`;
     }
     if (this.enemyNameLabel) {
       this.enemyNameLabel.string = hud.enemyName;
     }
     if (this.enemyHPLabel) {
-      this.enemyHPLabel.string = `${hud.enemyHP}/${hud.enemyMaxHP}`;
+      this.enemyHPLabel.string = `${formatHpDisplay(hud.enemyHP)}/${formatHpDisplay(hud.enemyMaxHP)}`;
     }
     if (this.goldLabel) {
       this.goldLabel.string = `金币 ${hud.gold}`;
@@ -274,57 +333,107 @@ export class BattleSceneView extends Component {
     bar.setContentSize(HP_BAR_FULL_WIDTH * ratio, bar.contentSize.height);
   }
 
-  private _refreshSlots(views: IItemSlotView[]): void {
-    for (let i = 0; i < 6; i++) {
-      const view = views[i];
-      const border = this.slotBorders[i];
-      const nameLabel = this.slotNameLabels[i];
-      const cdLabel = this.slotCDLabels[i];
-
-      if (nameLabel) {
-        nameLabel.string = view?.name ?? '空';
-      }
-      if (cdLabel) {
-        cdLabel.string = view?.cdText ?? '';
-        cdLabel.node.active = !(view?.isEmpty ?? true);
-      }
-      if (border && view?.borderColor) {
-        const hex = view.borderColor.startsWith('#')
-          ? view.borderColor.slice(1)
-          : view.borderColor;
-        const c = new Color();
-        Color.fromHEX(c, hex);
-        border.color = c;
-      }
-      if (border && view?.scaleAnim) {
-        border.node.setScale(1.15, 1.15, 1);
-      } else if (border) {
-        border.node.setScale(1, 1, 1);
-      }
-    }
-  }
-
   private _refreshItemDisplay(app: NonNullable<ReturnType<BattleSceneView['_getApp']>>): void {
     if (!this.itemDisplay) {
       return;
     }
-    const items = app.getBattle().getEquippedItemsBySlot();
-    this.itemDisplay.setDeps(app.getItemDisplayDeps());
-    this.itemDisplay.refreshEquippedSlots('battle_equipped', items);
+    const battle = app.getBattle();
+    const poisonStacks = battle.getEnemyPoisonStacks();
+
+    if (!this._itemDisplayInited) {
+      this.itemDisplay.setDeps(app.getItemDisplayDeps(poisonStacks));
+      this.itemDisplay.ensureToastListener((msg) => this._flashMessage(msg));
+      this._itemDisplayInited = true;
+    } else {
+      this.itemDisplay.patchDeps({ enemyPoisonStacks: poisonStacks });
+    }
+
+    const items = battle.getEquippedItemsBySlot();
+    this.itemDisplay.refreshEquippedSlots('battle_equipped', items, {
+      battleSettled: battle.getPhase() === 'settlement',
+    });
+  }
+
+  private _initItemDisplay(): void {
+    this._resolveViewBindings();
+    const app = this._getApp();
+    if (!app || !this.itemDisplay || this._itemDisplayInited) {
+      return;
+    }
+    if (!this._useItemDisplay()) {
+      return;
+    }
+    this.itemDisplay.setDeps(
+      app.getItemDisplayDeps(app.getBattle().getEnemyPoisonStacks()),
+    );
     this.itemDisplay.ensureToastListener((msg) => this._flashMessage(msg));
+    this._itemDisplayInited = true;
+  }
+
+  /** 战斗场景固定走 v4 ItemCardWidget（运行时自动生成 6 张卡） */
+  private _useItemDisplay(): boolean {
+    return this.itemDisplay?.areBattleSlotsReady() === true;
+  }
+
+  private _resolveViewBindings(): void {
+    const canvas = this.node.scene?.getChildByName('Canvas') ?? this.node;
+    const itemSlots = canvas.getChildByName('ItemSlots');
+
+    if (!this.itemDisplay) {
+      let root = canvas.getChildByName('ItemDisplayRoot');
+      if (!root) {
+        root = new Node('ItemDisplayRoot');
+        canvas.addChild(root);
+      }
+      this.itemDisplay =
+        root.getComponent(ItemDisplayController) ??
+        root.addComponent(ItemDisplayController);
+    }
+
+    this.itemDisplay.ensureBattleSlotWidgets(itemSlots);
+    this._bindingsResolved = true;
   }
 
   private _setLegacySlotsVisible(visible: boolean): void {
+    if (!visible && this._legacySlotsHidden) {
+      return;
+    }
+    if (visible) {
+      this._legacySlotsHidden = false;
+    }
+
+    const canvas = this.node.scene?.getChildByName('Canvas') ?? this.node;
+    const itemSlots = canvas.getChildByName('ItemSlots');
+    if (itemSlots) {
+      for (let i = 0; i < 6; i++) {
+        const slot = itemSlots.getChildByName(`Slot${i}`);
+        if (slot?.isValid) {
+          slot.active = visible;
+        }
+      }
+      if (!visible) {
+        this._legacySlotsHidden = true;
+      }
+      return;
+    }
+
     for (let i = 0; i < 6; i++) {
-      if (this.slotNameLabels[i]) {
-        this.slotNameLabels[i]!.node.active = visible;
+      const nameNode = this.slotNameLabels[i]?.node;
+      if (nameNode?.isValid) {
+        nameNode.active = visible;
       }
-      if (this.slotCDLabels[i]) {
-        this.slotCDLabels[i]!.node.active = visible;
+      const cdNode = this.slotCDLabels[i]?.node;
+      if (cdNode?.isValid) {
+        cdNode.active = visible;
       }
-      if (this.slotBorders[i]) {
-        this.slotBorders[i]!.node.active = visible;
+      const borderNode = this.slotBorders[i]?.node;
+      if (borderNode?.isValid) {
+        borderNode.active = visible;
       }
+    }
+
+    if (this.itemDisplay && !visible) {
+      this._legacySlotsHidden = true;
     }
   }
 
@@ -348,7 +457,7 @@ export class BattleSceneView extends Component {
   private _refreshRescue(buttons: IRescueButtonView[]): void {
     for (let i = 0; i < buttons.length; i++) {
       const view = buttons[i];
-      const btn = this.rescueButtons[i];
+      const btn = this._rescueButtons[i];
       const lbl = this.rescueButtonLabels[i];
       if (!view || !btn) {
         continue;
@@ -396,22 +505,34 @@ export class BattleSceneView extends Component {
         this.messageLabel.string =
           '「重试」回退本回合 · 「重新开始」从第1关重来（清空金币装备）';
       } else if (settlement.canEnterShop) {
-        this.messageLabel.string = '点击「进入商店」购买装备';
+        const isFinalWin =
+          settlement.result === 'victory' && settlement.round >= MAX_ROUND;
+        this.messageLabel.string = isFinalWin
+          ? '点击「查看通关」'
+          : '点击「进入商店」购买装备';
       } else {
         this.messageLabel.string = '';
         this._settlementHintActive = false;
       }
     }
-    if (this.enterShopBtn) {
-      this.enterShopBtn.node.active = settlement.canEnterShop;
+    if (this._enterShopBtn?.node?.isValid) {
+      this._enterShopBtn.node.active = settlement.canEnterShop;
+      if (settlement.canEnterShop) {
+        const isFinalWin =
+          settlement.result === 'victory' && settlement.round >= MAX_ROUND;
+        const lbl = this._enterShopBtn.getComponentInChildren(Label);
+        if (lbl) {
+          lbl.string = isFinalWin ? '查看通关' : '进入商店';
+        }
+      }
     }
-    if (this.retryBtn) {
-      this.retryBtn.node.active = settlement.canRetry;
-      this.retryBtn.interactable = settlement.canRetry;
+    if (this._retryBtn?.node?.isValid) {
+      this._retryBtn.node.active = settlement.canRetry;
+      this._retryBtn.interactable = settlement.canRetry;
     }
-    if (this.restartBtn) {
-      this.restartBtn.node.active = settlement.canRestart;
-      this.restartBtn.interactable = settlement.canRestart;
+    if (this._restartBtn?.node?.isValid) {
+      this._restartBtn.node.active = settlement.canRestart;
+      this._restartBtn.interactable = settlement.canRestart;
     }
   }
 

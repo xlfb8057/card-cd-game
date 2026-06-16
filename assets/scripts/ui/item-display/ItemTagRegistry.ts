@@ -39,3 +39,8 @@ export function getTagDisplay(tagId: string): ITagDisplayInfo {
 export function getTagsDisplay(tagIds: string[]): ITagDisplayInfo[] {
   return tagIds.map(getTagDisplay);
 }
+
+/** 预加载全部标签角标 */
+export const ALL_TAG_ICON_PATHS: string[] = Object.values(TAG_REGISTRY).map(
+  (entry) => entry.iconPath,
+);

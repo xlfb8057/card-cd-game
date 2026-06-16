@@ -48,6 +48,16 @@ export function applyHeal(
   return Math.min(currentHP + amount, maxHP);
 }
 
+/** 战斗 HP 取整（DOT/倍率可能产生小数） */
+export function roundBattleHp(value: number): number {
+  return Math.max(0, Math.round(value));
+}
+
+/** HUD 血量文案：仅显示整数 */
+export function formatHpDisplay(value: number): string {
+  return String(roundBattleHp(value));
+}
+
 export function getAdjacentPositions(position: number): number[] {
   const adjacent: number[] = [];
   if (position > 0) {

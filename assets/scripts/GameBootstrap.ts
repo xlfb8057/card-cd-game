@@ -4,6 +4,8 @@ import { getGameApp, setGameApp } from './core/GameAppHolder';
 import { IConfigLoader } from './core/ConfigTable';
 import { initWeChatSession } from './platform/WeChatBridge';
 import { isWxMiniGame } from './platform/WxRuntime';
+import { DevGmPanel } from './dev/DevGmPanel';
+import { isDevGmEnabled } from './dev/DevGmBridge';
 
 const { ccclass, property } = _decorator;
 
@@ -24,10 +26,11 @@ class CocosResourcesConfigLoader implements IConfigLoader {
 
 @ccclass('GameBootstrap')
 export class GameBootstrap extends Component {
+  /** 加载提示（场景里 Canvas/DebugLabel；未绑定时自动查找） */
   @property(Label)
   debugLabel: Label | null = null;
 
-  private _app: GameApp | null = null;
+  private _loadingLabel: Label | null = null;
 
   /** 供 BattleSceneView 等 UI 脚本读取游戏逻辑 */
   getApp(): GameApp | null {
@@ -35,6 +38,8 @@ export class GameBootstrap extends Component {
   }
 
   async onLoad() {
+    this._resolveLoadingLabel();
+
     if (isWxMiniGame()) {
       await initWeChatSession();
     }
@@ -43,19 +48,80 @@ export class GameBootstrap extends Component {
     if (existing) {
       this._app = existing;
       setGameApp(existing);
+      this._hideLoading();
+      this._ensureDevGmPanel();
       return;
     }
 
-    // 微信/浏览器用 StorageAPI；仅 Node 测试才用内存存储
-    this._app = new GameApp(new CocosResourcesConfigLoader(), false);
-    await this._app.initialize();
-    this._app.selectHero('stelle');
-    this._app.startNewGame();
-    setGameApp(this._app);
-
-    if (this.debugLabel) {
-      this.debugLabel.string = '游戏已启动…';
+    this._showLoading('加载中...');
+    try {
+      this._app = new GameApp(new CocosResourcesConfigLoader(), false);
+      await this._app.initialize();
+      this._app.selectHero('stelle');
+      this._app.startNewGame();
+      setGameApp(this._app);
+    } finally {
+      this._hideLoading();
     }
+    this._ensureDevGmPanel();
+  }
+
+  /** 从存档继续（供菜单/按钮调用） */
+  async continueFromSave(): Promise<boolean> {
+    this._resolveLoadingLabel();
+    this._showLoading('读取存档…');
+
+    try {
+      if (!this._app) {
+        this._app = new GameApp(new CocosResourcesConfigLoader(), false);
+        await this._app.initialize();
+        setGameApp(this._app);
+      }
+      const ok = this._app.continueGame();
+      return ok;
+    } finally {
+      this._hideLoading();
+    }
+  }
+
+  private _resolveLoadingLabel(): void {
+    if (this.debugLabel?.node?.isValid) {
+      this._loadingLabel = this.debugLabel;
+      return;
+    }
+    const node =
+      this.node.getChildByName('DebugLabel') ??
+      this.node.getChildByName('LoadingLabel');
+    this._loadingLabel = node?.getComponent(Label) ?? null;
+    this.debugLabel = this._loadingLabel;
+  }
+
+  private _showLoading(text: string): void {
+    const label = this._loadingLabel;
+    if (!label?.node?.isValid) {
+      return;
+    }
+    label.node.active = true;
+    label.string = text;
+  }
+
+  private _hideLoading(): void {
+    const label = this._loadingLabel;
+    if (!label?.node?.isValid) {
+      return;
+    }
+    label.string = '';
+    label.node.active = false;
+  }
+
+  private _ensureDevGmPanel(): void {
+    if (!isDevGmEnabled()) {
+      return;
+    }
+    if (this.node.getComponent(DevGmPanel)) {
+      return;
+    }
+    this.node.addComponent(DevGmPanel);
   }
 
   update(dt: number) {
@@ -64,16 +130,5 @@ export class GameBootstrap extends Component {
     }
 
     this._app.tick(dt);
-
-    if (!this.debugLabel) {
-      return;
-    }
-
-    const hud = this._app.getBattle().getHUD();
-    this.debugLabel.string =
-      `第${hud.round}回合  ` +
-      `HP ${hud.playerHP}/${hud.playerMaxHP}  ` +
-      `敌人 ${hud.enemyName} ${hud.enemyHP}/${hud.enemyMaxHP}  ` +
-      `金币 ${hud.gold}`;
   }
 }

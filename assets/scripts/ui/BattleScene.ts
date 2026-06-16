@@ -30,6 +30,7 @@ import {
 import { createEnemyFromConfig } from '../models/EnemyFactory';
 import { IItemInstance } from '../models/ItemInstance';
 import {
+  MAX_ROUND,
   ROUND_ENEMY_IDS,
   TUTORIAL_ITEM_IDS,
   getBattleGoldReward,
@@ -202,6 +203,11 @@ export class BattleSceneController {
     return result;
   }
 
+  /** 敌人 DOT 层数（详情/Build 面板 scaling 展示） */
+  getEnemyPoisonStacks(): number {
+    return this._battle.getEnemyDotStacks();
+  }
+
   getLogEntries(): IBattleLogEntry[] {
     return this._log.getEntries();
   }
@@ -340,7 +346,6 @@ export class BattleSceneController {
         'slot',
         p.target.position,
       );
-      this._slots[p.target.position]?.setPulseRed(true);
     });
 
     this._eventBus.on<IDamageDealtPayload>('damage_dealt', (p) => {
@@ -399,6 +404,8 @@ export class BattleSceneController {
     let message = won ? '胜利！' : '失败...';
     if (result === 'timeout') {
       message = '超时失败';
+    } else if (won && this._round >= MAX_ROUND) {
+      message = '恭喜通关！';
     }
 
     this._settlement = {

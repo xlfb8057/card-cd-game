@@ -37,6 +37,8 @@ export interface IGameApp {
   hasContinueSave(): boolean;
   continueGame(): boolean;
   getScene(): GameSceneType;
+  /** 是否已通关 MVP 全部关卡（第 5 关胜利后） */
+  isGameComplete(): boolean;
   tick(dt: number): void;
   enterShop(victory?: boolean): void;
   startBattle(): void;
@@ -46,6 +48,10 @@ export interface IGameApp {
   getEconomy(): EconomySystem;
   getInventory(): InventorySystem;
   getItemDisplayDeps(enemyPoisonStacks?: number): IItemDisplayDeps;
+  /** 开发用：直接标记通关（仅预览/编辑器 GM） */
+  debugSkipToGameComplete(): void;
+  /** 开发用：跳到指定回合商店 */
+  debugJumpToRound(round: number): void;
 }
 
 /**
@@ -191,11 +197,15 @@ export class GameApp implements IGameApp {
     }
     this._session.applySaveState(save);
     this._heroSystem.loadHeroById(save.heroId);
-    this._scene = save.phase === 'battle' ? 'battle' : 'shop';
+    if (save.round >= MAX_ROUND && save.phase === 'shop') {
+      this._scene = 'gameover';
+    } else {
+      this._scene = save.phase === 'battle' ? 'battle' : 'shop';
+    }
 
     if (this._scene === 'battle') {
       this._battleScene.startRound(save.round);
-    } else {
+    } else if (this._scene === 'shop') {
       this._shopScene.enterShop(save.round);
     }
     return true;
@@ -203,6 +213,10 @@ export class GameApp implements IGameApp {
 
   getScene(): GameSceneType {
     return this._scene;
+  }
+
+  isGameComplete(): boolean {
+    return this._scene === 'gameover';
   }
 
   tick(dt: number): void {
@@ -215,7 +229,13 @@ export class GameApp implements IGameApp {
     const round = this._state.round;
 
     if (round >= MAX_ROUND && victory) {
+      const s = this._state.getState();
+      const healAmount = Math.floor(s.maxHP * 0.6);
+      this._state.setState({
+        hp: Math.min(s.maxHP, s.hp + healAmount),
+      });
       this._scene = 'gameover';
+      this._session.saveToDisk('shop');
       this._eventBus.emit('game_complete', {});
       return;
     }
@@ -273,5 +293,26 @@ export class GameApp implements IGameApp {
       currentHeroId: this._heroId,
       enemyPoisonStacks,
     };
+  }
+
+  /** GM：模拟第 5 关胜利后的通关状态 */
+  debugSkipToGameComplete(): void {
+    const s = this._state.getState();
+    this._state.setState({
+      round: MAX_ROUND,
+      hp: Math.min(s.maxHP, Math.max(1, s.hp)),
+    });
+    this._scene = 'gameover';
+    this._session.saveToDisk('shop');
+    this._eventBus.emit('game_complete', {});
+  }
+
+  /** GM：跳到指定回合并打开商店（不标记通关） */
+  debugJumpToRound(round: number): void {
+    const clamped = Math.max(1, Math.min(MAX_ROUND, round));
+    this._state.setState({ round: clamped });
+    this._scene = 'shop';
+    this._shopScene.enterShop(clamped);
+    this._session.saveToDisk('shop');
   }
 }

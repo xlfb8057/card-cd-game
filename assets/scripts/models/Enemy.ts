@@ -67,9 +67,10 @@ export class Enemy implements IEnemy {
 
   /** 受到伤害，返回实际扣血量 */
   takeDamage(amount: number): number {
-    const actual = Math.min(amount, this.hp);
-    this.hp -= actual;
-    return actual;
+    const dmg = Math.max(0, amount);
+    const actual = Math.min(dmg, this.hp);
+    this.hp = Math.max(0, Math.round(this.hp - actual));
+    return Math.round(actual);
   }
 
   resetAttackCD(): void {

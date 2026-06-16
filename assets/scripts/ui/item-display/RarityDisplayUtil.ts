@@ -51,8 +51,13 @@ export function getCdOverlayKey(): string {
   return `${ITEM_DISPLAY_RESOURCE_PREFIX}/overlays/cd_overlay_bar`;
 }
 
+export function getCdReadyParticleKey(): string {
+  return `${ITEM_DISPLAY_RESOURCE_PREFIX}/overlays/cd_ready_particle`;
+}
+
+/** @deprecated v4.1 改用 getCdReadyParticleKey */
 export function getCdMaxBadgeKey(): string {
-  return `${ITEM_DISPLAY_RESOURCE_PREFIX}/overlays/cd_max_badge`;
+  return getCdReadyParticleKey();
 }
 
 export function getSynergyPulseFrameKey(): string {
