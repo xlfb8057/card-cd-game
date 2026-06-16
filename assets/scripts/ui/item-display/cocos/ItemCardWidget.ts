@@ -11,6 +11,7 @@ import {
   Node,
   Sprite,
   UITransform,
+  view,
 } from 'cc';
 import { IItemCardViewModel } from '../ItemDisplayTypes';
 import { ItemStarBadge } from './ItemStarBadge';
@@ -70,6 +71,7 @@ export class ItemCardWidget extends Component {
 
   private _viewModel: IItemCardViewModel | null = null;
   private _onClick: ItemCardClickHandler | null = null;
+  private _lastIconPath = '';
 
   onLoad(): void {
     const btn = this.clickButton ?? this.getComponent(Button);
@@ -92,6 +94,12 @@ export class ItemCardWidget extends Component {
 
     if (this.emptySlotNode) {
       this.emptySlotNode.active = false;
+    }
+    if (this.iconSprite?.node) {
+      this.iconSprite.node.active = true;
+    }
+    if (this.starBadge?.node) {
+      this.starBadge.node.active = true;
     }
 
     this._applyRarityFrame(viewModel);
@@ -132,6 +140,26 @@ export class ItemCardWidget extends Component {
     if (this.rarityFrame?.node) {
       this.rarityFrame.node.active = false;
     }
+    if (this.iconSprite?.node) {
+      this.iconSprite.node.active = false;
+    }
+    if (this.cdOverlayNode) {
+      this.cdOverlayNode.active = false;
+    }
+    if (this.cdMaxBadge) {
+      this.cdMaxBadge.active = false;
+    }
+    this.cdMaxPulse?.setActive(false);
+    if (this.starBadge?.node) {
+      this.starBadge.node.active = false;
+    }
+    this.modBadge?.apply(false);
+    this.tagStrip?.apply([]);
+    if (this.shopHintLabel) {
+      this.shopHintLabel.node.active = false;
+      this.shopHintLabel.string = '';
+    }
+    this.synergyPulse?.setActive(false);
     if (this.emptyHintLabel) {
       this.emptyHintLabel.string = vm.slotLocked ? '锁定' : '';
     }
@@ -163,16 +191,31 @@ export class ItemCardWidget extends Component {
     if (!this.iconSprite) {
       return;
     }
-    loadSpriteFrame(vm.iconPath.replace(/^textures\//, 'textures/')).then(
-      (sf) => {
-        if (sf && this._viewModel?.configId === vm.configId) {
-          applySpriteFrame(this.iconSprite, sf);
-        }
-      },
-    );
+    const path = vm.iconPath.replace(/^textures\//, 'textures/');
+    if (this._lastIconPath !== path) {
+      this._lastIconPath = path;
+      this.iconSprite.spriteFrame = null;
+    }
+    loadSpriteFrame(path).then((sf) => {
+      if (this._lastIconPath !== path || this._viewModel?.configId !== vm.configId) {
+        return;
+      }
+      if (sf) {
+        applySpriteFrame(this.iconSprite, sf);
+      } else {
+        this._applyIconPlaceholder(path, vm.configId);
+      }
+    });
+  }
+
+  private _applyIconPlaceholder(requestPath: string, configId: string): void {
     loadSpriteFrame('textures/item-display/frames/icon_placeholder').then(
       (sf) => {
-        if (!this.iconSprite?.spriteFrame && sf) {
+        if (
+          this._lastIconPath === requestPath &&
+          this._viewModel?.configId === configId &&
+          sf
+        ) {
           applySpriteFrame(this.iconSprite, sf);
         }
       },
@@ -219,8 +262,14 @@ export class ItemCardWidget extends Component {
   getAnchorRect(): { x: number; y: number; width: number; height: number } {
     const transform = this.node.getComponent(UITransform);
     const world = this.node.worldPosition;
+    const visible = view.getVisibleSize();
     const w = transform?.contentSize.width ?? 112;
     const h = transform?.contentSize.height ?? 112;
-    return { x: world.x - w / 2, y: world.y - h / 2, width: w, height: h };
+    return {
+      x: world.x - visible.width / 2 - w / 2,
+      y: world.y - visible.height / 2 - h / 2,
+      width: w,
+      height: h,
+    };
   }
 }

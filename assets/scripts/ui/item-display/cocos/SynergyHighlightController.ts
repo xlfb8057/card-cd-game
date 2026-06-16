@@ -22,6 +22,7 @@ export class SynergyHighlightController extends Component {
   pulseSprite: Sprite | null = null;
 
   private _active = false;
+  private _opacity: UIOpacity | null = null;
 
   setActive(on: boolean): void {
     if (on) {
@@ -44,16 +45,16 @@ export class SynergyHighlightController extends Component {
       this.pulseSprite.color = c;
     }
 
-    let opacity =
+    const opacity =
       this.pulseSprite?.node.getComponent(UIOpacity) ??
-      this.pulseSprite?.node.addComponent(UIOpacity);
-    if (!opacity && this.node) {
-      opacity = this.node.getComponent(UIOpacity) ?? this.node.addComponent(UIOpacity);
-    }
+      this.pulseSprite?.node.addComponent(UIOpacity) ??
+      this.node.getComponent(UIOpacity) ??
+      this.node.addComponent(UIOpacity);
     if (!opacity) {
       return;
     }
 
+    this._opacity = opacity;
     opacity.opacity = 76;
     tween(opacity)
       .repeatForever(
@@ -67,6 +68,10 @@ export class SynergyHighlightController extends Component {
   private _stopPulse(): void {
     this._active = false;
     this.node.active = false;
+    if (this._opacity) {
+      Tween.stopAllByTarget(this._opacity);
+      this._opacity.opacity = 255;
+    }
     Tween.stopAllByTarget(this.node);
     if (this.pulseSprite?.node) {
       Tween.stopAllByTarget(this.pulseSprite.node);
