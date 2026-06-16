@@ -391,6 +391,8 @@ export class BattleSceneView extends Component {
     }
 
     this.itemDisplay.ensureBattleSlotWidgets(itemSlots);
+    this.itemDisplay.ensureDetailPopover();
+    this.itemDisplay.ensureBuildSynergyPanel();
     this._bindingsResolved = true;
   }
 

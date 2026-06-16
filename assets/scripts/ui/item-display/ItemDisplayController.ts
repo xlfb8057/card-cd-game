@@ -9,6 +9,7 @@ import {
   instantiate,
   Node,
   Prefab,
+  UITransform,
   view,
 } from 'cc';
 import { ItemCardWidget } from './cocos/ItemCardWidget';
@@ -66,11 +67,15 @@ export class ItemDisplayController extends Component {
   onLoad(): void {
     this._resolveSlotCards();
     this.ensureBattleSlotWidgets();
+    this.ensureDetailPopover();
+    this.ensureBuildSynergyPanel();
   }
 
   start(): void {
     this._resolveSlotCards();
     this.ensureBattleSlotWidgets();
+    this.ensureDetailPopover();
+    this.ensureBuildSynergyPanel();
   }
 
   /** 战斗场景：从 resources 实例化 6× ItemCardWidget，并隐藏 Legacy Slot0~5 */
@@ -144,6 +149,60 @@ export class ItemDisplayController extends Component {
     );
   }
 
+  /** 战斗场景：运行时创建详情 Popover（避免损坏预制体脚本引用导致 setParent 崩溃） */
+  ensureDetailPopover(): void {
+    if (this.detailPopover?.isValid) {
+      this._wirePopoverOnce();
+      return;
+    }
+
+    const existing = this.node.getChildByName('ItemDetailPopover');
+    if (existing?.isValid) {
+      this.detailPopover = existing.getComponent(ItemDetailPopover);
+      if (this.detailPopover) {
+        this._bringOverlayToFront(existing);
+        this._wirePopoverOnce();
+        return;
+      }
+      existing.destroy();
+    }
+
+    const node = new Node('ItemDetailPopover');
+    node.addComponent(UITransform).setContentSize(720, 1280);
+    this.detailPopover = node.addComponent(ItemDetailPopover);
+    node.setParent(this.node);
+    this._bringOverlayToFront(node);
+    this._wirePopoverOnce();
+  }
+
+  /** 战斗场景：运行时创建 Build 联动面板 */
+  ensureBuildSynergyPanel(): void {
+    if (this.buildSynergyPanel?.isValid) {
+      return;
+    }
+
+    const existing = this.node.getChildByName('BuildSynergyPanel');
+    if (existing?.isValid) {
+      this.buildSynergyPanel = existing.getComponent(BuildSynergyPanel);
+      if (this.buildSynergyPanel) {
+        this._bringOverlayToFront(existing);
+        return;
+      }
+      existing.destroy();
+    }
+
+    const node = new Node('BuildSynergyPanel');
+    node.setPosition(160, 0, 0);
+    node.addComponent(UITransform).setContentSize(280, 360);
+    this.buildSynergyPanel = node.addComponent(BuildSynergyPanel);
+    node.setParent(this.node);
+    this._bringOverlayToFront(node);
+  }
+
+  private _bringOverlayToFront(node: Node): void {
+    node.setSiblingIndex(this.node.children.length - 1);
+  }
+
   private _findItemSlotsNode(): Node | null {
     const scene = this.node.scene;
     const canvas = scene?.getChildByName('Canvas');
@@ -177,6 +236,8 @@ export class ItemDisplayController extends Component {
         getLockedSlotFrameKey(),
       ]);
     }
+    this.ensureDetailPopover();
+    this.ensureBuildSynergyPanel();
     this._wirePopoverOnce();
   }
 
@@ -206,7 +267,7 @@ export class ItemDisplayController extends Component {
     }
 
     if (this.detailPopover?.isVisible() && this._activeDetailCtx) {
-      this._applyDetailHighlights(this._activeDetailCtx);
+      this._refreshVisibleDetail();
     }
   }
 
@@ -274,7 +335,11 @@ export class ItemDisplayController extends Component {
     ctx: ReturnType<typeof buildItemContext>,
     anchor: ItemCardWidget,
   ): void {
-    if (!this._deps || !this.detailPopover) {
+    if (!this._deps) {
+      return;
+    }
+    this.ensureDetailPopover();
+    if (!this.detailPopover) {
       return;
     }
 
@@ -294,11 +359,43 @@ export class ItemDisplayController extends Component {
   }
 
   private _openBuildSynergy(): void {
-    if (!this._activeDetailCtx || !this.buildSynergyPanel) {
+    if (!this._activeDetailCtx) {
       return;
     }
-    const lines = buildSynergyAnalyzer.analyze(this._activeDetailCtx);
+    this.ensureBuildSynergyPanel();
+    if (!this.buildSynergyPanel) {
+      return;
+    }
+    const ctx = this._rebuildDetailContext(this._activeDetailCtx);
+    this._activeDetailCtx = ctx;
+    const lines = buildSynergyAnalyzer.analyze(ctx);
     this.buildSynergyPanel.show(lines);
+  }
+
+  private _refreshVisibleDetail(): void {
+    if (!this._deps || !this._activeDetailCtx || !this.detailPopover) {
+      return;
+    }
+    const ctx = this._rebuildDetailContext(this._activeDetailCtx);
+    this._activeDetailCtx = ctx;
+    this.detailPopover.updateContent(itemDisplayPresenter.buildDetail(ctx));
+    this._applyDetailHighlights(ctx);
+  }
+
+  private _rebuildDetailContext(
+    ctx: ReturnType<typeof buildItemContext>,
+  ): ReturnType<typeof buildItemContext> {
+    if (!this._deps) {
+      return ctx;
+    }
+    return buildItemContext(ctx.kind, ctx.configId, this._deps, {
+      instance: ctx.instance,
+      slotIndex: ctx.slotIndex,
+      sold: ctx.sold,
+      shopIndex: ctx.shopIndex,
+      codexStar: ctx.codexStar,
+      battleSettled: ctx.battleSettled,
+    });
   }
 
   private _applyDetailHighlights(

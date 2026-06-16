@@ -407,15 +407,18 @@ export class ItemCardWidget extends Component {
     this._onClick(this._viewModel);
   }
 
+  /** 卡片外接矩形（左上角 + 尺寸），与 ItemDisplayController.screenRect 同坐标系 */
   getAnchorRect(): { x: number; y: number; width: number; height: number } {
     const transform = this.node.getComponent(UITransform);
     const world = this.node.worldPosition;
     const visible = view.getVisibleSize();
     const w = transform?.contentSize.width ?? 112;
     const h = transform?.contentSize.height ?? 112;
+    const halfW = visible.width / 2;
+    const halfH = visible.height / 2;
     return {
-      x: world.x - visible.width / 2 - w / 2,
-      y: world.y - visible.height / 2 - h / 2,
+      x: world.x - halfW - w / 2,
+      y: world.y + h / 2 - halfH,
       width: w,
       height: h,
     };

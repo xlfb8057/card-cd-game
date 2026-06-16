@@ -1,6 +1,6 @@
 {
   "name": "card-cd-game",
-  "version": "1.0.0",
+  "version": "0.2.1",
   "description": "大巴扎：像素乱斗 MVP - Cocos Creator 竖屏白盒原型",
   "uuid": "cdb57428-d19e-4a74-9a4f-df8c8e609922",
   "creator": {
@@ -26,7 +26,8 @@
     "test:equipment:popover": "npx tsx tools/equipment/run-all.ts popover-layout",
     "test:equipment:flow": "npx tsx tools/equipment/run-all.ts game-flow",
     "verify:all": "npm run verify:p0 && npm run verify:p1 && npm run verify:p2 && npm run test:equipment",
-    "gen:item-display": "node tools/generate-item-display-assets.mjs"
+    "gen:item-display": "node tools/generate-item-display-assets.mjs",
+    "gen:item-detail-popover": "node tools/generate-item-detail-popover-prefab.mjs"
   },
   "devDependencies": {
     "pngjs": "^7.0.0"
