@@ -30,5 +30,13 @@ export const mergeHintSuite: TestSuite = {
     );
     assert(!battleCard.showMergeHint, '战斗装备栏不显示升星提示');
     assert(!battleCard.mergeStarPulse, '战斗装备栏 mergeStarPulse=false');
+
+    const battleDetail = itemDisplayPresenter.buildDetail(
+      buildItemContext('battle_equipped', 'spike_trap', ctx.deps, {
+        instance: item,
+        slotIndex: 0,
+      }),
+    );
+    assert(!battleDetail.showMergeHint, '战斗详情不显示可升星文案');
   },
 };

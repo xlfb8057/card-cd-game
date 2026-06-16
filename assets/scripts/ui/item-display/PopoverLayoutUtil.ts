@@ -19,6 +19,67 @@ export interface IRect {
 const SAFE_MARGIN = 8;
 export const DEFAULT_POPOVER_WIDTH = 280;
 export const DEFAULT_POPOVER_HEIGHT = 320;
+/** 战斗界面：浮层底边与卡片顶边的间距（§4.1 战斗专用） */
+export const BATTLE_POPOVER_GAP_ABOVE_ICON = 20;
+
+export type PopoverPlacementMode = 'battle' | 'auto';
+
+export function computePopoverLayoutForMode(
+  anchor: IRect,
+  screen: IRect,
+  mode: PopoverPlacementMode,
+  popoverWidth = DEFAULT_POPOVER_WIDTH,
+  popoverHeight = DEFAULT_POPOVER_HEIGHT,
+): IPopoverLayout {
+  if (mode === 'battle') {
+    return computeBattlePopoverLayout(
+      anchor,
+      screen,
+      popoverWidth,
+      popoverHeight,
+    );
+  }
+  return computePopoverLayout(anchor, screen, popoverWidth, popoverHeight);
+}
+
+/** 战斗界面：浮层固定出现在卡片上方，底边距卡片顶约 20px */
+export function computeBattlePopoverLayout(
+  anchor: IRect,
+  screen: IRect,
+  popoverWidth = DEFAULT_POPOVER_WIDTH,
+  popoverHeight = DEFAULT_POPOVER_HEIGHT,
+): IPopoverLayout {
+  const minTop = screen.y + SAFE_MARGIN;
+  const maxTop = screen.y + screen.height - SAFE_MARGIN;
+  const minLeft = screen.x + SAFE_MARGIN;
+  const maxLeft = screen.x + screen.width - popoverWidth - SAFE_MARGIN;
+
+  const cardTop = anchor.y;
+  const minBottom = cardTop + BATTLE_POPOVER_GAP_ABOVE_ICON;
+
+  let maxHeight = Math.min(popoverHeight, maxTop - minTop);
+  maxHeight = Math.max(maxHeight, 120);
+
+  let topY = minBottom + maxHeight;
+  if (topY > maxTop) {
+    topY = maxTop;
+    maxHeight = Math.max(120, topY - minBottom);
+  }
+  if (topY - maxHeight < minTop) {
+    maxHeight = topY - minTop;
+    maxHeight = Math.max(120, Math.min(maxHeight, topY - minBottom));
+  }
+
+  let x = anchor.x + anchor.width / 2 - popoverWidth / 2;
+  x = Math.max(minLeft, Math.min(x, maxLeft));
+
+  return {
+    placement: 'top',
+    x,
+    y: topY,
+    maxHeight,
+  };
+}
 
 export function computePopoverLayout(
   anchor: IRect,

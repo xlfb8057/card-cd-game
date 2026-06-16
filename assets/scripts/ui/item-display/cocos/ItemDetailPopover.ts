@@ -19,10 +19,12 @@ import {
   Vec3,
 } from 'cc';
 import { IItemDetailViewModel } from '../ItemDisplayTypes';
+import { ITagDisplayInfo } from '../ItemTagRegistry';
 import {
-  computePopoverLayout,
+  computePopoverLayoutForMode,
   DEFAULT_POPOVER_HEIGHT,
   DEFAULT_POPOVER_WIDTH,
+  PopoverPlacementMode,
 } from '../PopoverLayoutUtil';
 import { getPopoverBgKey } from '../RarityDisplayUtil';
 import { applySpriteFrame, loadSpriteFrame } from './ItemSpriteLoader';
@@ -65,9 +67,6 @@ export class ItemDetailPopover extends Component {
   affinityLabel: Label | null = null;
 
   @property(Label)
-  tagsLabel: Label | null = null;
-
-  @property(Label)
   effectsLabel: Label | null = null;
 
   @property(Label)
@@ -91,6 +90,9 @@ export class ItemDetailPopover extends Component {
   private _uiReady = false;
   private _scrollView: ScrollView | null = null;
   private _contentNode: Node | null = null;
+  private _tagsRowNode: Node | null = null;
+  private readonly _tagIconPool: Sprite[] = [];
+  private readonly _tagTextPool: Label[] = [];
 
   onLoad(): void {
     this.node.active = false;
@@ -119,10 +121,15 @@ export class ItemDetailPopover extends Component {
     detail: IItemDetailViewModel,
     anchorRect: { x: number; y: number; width: number; height: number },
     screenRect: { x: number; y: number; width: number; height: number },
+    options?: { placementMode?: PopoverPlacementMode },
   ): void {
     this._ensureDefaultUi();
     this._fillContent(detail);
-    const layout = computePopoverLayout(anchorRect, screenRect);
+    const layout = computePopoverLayoutForMode(
+      anchorRect,
+      screenRect,
+      options?.placementMode ?? 'auto',
+    );
     if (this.panelNode) {
       const transform = this.panelNode.getComponent(UITransform);
       if (transform) {
@@ -222,8 +229,8 @@ export class ItemDetailPopover extends Component {
       this.affinityLabel ??
       content.getChildByName('AffinityLabel')?.getComponent(Label) ??
       null;
-    this.tagsLabel =
-      this.tagsLabel ?? content.getChildByName('TagsLabel')?.getComponent(Label) ?? null;
+    this._tagsRowNode =
+      this._tagsRowNode ?? content.getChildByName('TagRow') ?? null;
     this.effectsLabel =
       this.effectsLabel ??
       content.getChildByName('EffectsLabel')?.getComponent(Label) ??
@@ -327,19 +334,18 @@ export class ItemDetailPopover extends Component {
         { name: 'PriceLabel', y: -136, fontSize: 16, height: 22 },
         { name: 'SellPriceLabel', y: -160, fontSize: 16, height: 22 },
         { name: 'AffinityLabel', y: -184, fontSize: 16, height: 22, color: new Color(144, 202, 249) },
-        { name: 'TagsLabel', y: -208, fontSize: 14, height: 20, color: new Color(189, 189, 189) },
         {
           name: 'EffectsLabel',
           y: -232,
           fontSize: 15,
-          height: 72,
+          height: 20,
           overflow: Label.Overflow.RESIZE_HEIGHT,
         },
         {
           name: 'ModEffectsLabel',
           y: -308,
           fontSize: 14,
-          height: 48,
+          height: 18,
           overflow: Label.Overflow.RESIZE_HEIGHT,
           color: new Color(165, 214, 167),
         },
@@ -350,6 +356,13 @@ export class ItemDetailPopover extends Component {
       for (const spec of specs) {
         this._addPanelLabel(content, spec);
       }
+
+      const tagRow = new Node('TagRow');
+      tagRow.setParent(content);
+      const tagRowUt = tagRow.addComponent(UITransform);
+      tagRowUt.setAnchorPoint(0, 1);
+      tagRowUt.setContentSize(POPOVER_WIDTH - CONTENT_INSET * 2, 24);
+      this._tagsRowNode = tagRow;
 
       const btnNode = new Node('BuildSynergyBtn');
       btnNode.setParent(content);
@@ -390,7 +403,7 @@ export class ItemDetailPopover extends Component {
     transform.setAnchorPoint(0, 1);
     const label = node.addComponent(Label);
     label.fontSize = spec.fontSize;
-    label.lineHeight = spec.height;
+    label.lineHeight = spec.fontSize + 5;
     label.horizontalAlign = Label.HorizontalAlign.LEFT;
     label.verticalAlign = Label.VerticalAlign.TOP;
     label.overflow = spec.overflow ?? Label.Overflow.CLAMP;
@@ -402,6 +415,7 @@ export class ItemDetailPopover extends Component {
   private _fillContent(detail: IItemDetailViewModel): void {
     if (this.nameLabel) {
       this.nameLabel.string = detail.name;
+      this.nameLabel.color = this._colorFromHex(detail.rarityColor);
     }
     if (this.rarityLabel) {
       this.rarityLabel.string = detail.rarityLabel;
@@ -434,23 +448,10 @@ export class ItemDetailPopover extends Component {
       this.affinityLabel.node.active = !!detail.affinityLabel;
       this.affinityLabel.string = detail.affinityLabel;
     }
-    if (this.tagsLabel) {
-      this.tagsLabel.string = detail.tags
-        .map((t) => t.label)
-        .join(' · ');
-    }
+    this._renderTagRow(detail.tags);
     if (this.effectsLabel) {
       this.effectsLabel.string = detail.effects
-        .map((e) => {
-          let line = `【${e.typeLabel}】${e.description}`;
-          if (e.showStarArrow && e.nextValueText) {
-            line = `【${e.typeLabel}】${e.currentValueText} → ${e.nextValueText}`;
-          }
-          if (e.valueHighlighted && e.baseValueHint) {
-            line += ` (${e.baseValueHint})`;
-          }
-          return line;
-        })
+        .map((e) => `【${e.typeLabel}】${e.description}`)
         .join('\n');
     }
     if (this.modEffectsLabel) {
@@ -478,6 +479,107 @@ export class ItemDetailPopover extends Component {
           : `${prefix}${names}`;
       }
     }
+
+    this._reflowDetailRows();
+    const panelHeight =
+      this.panelNode?.getComponent(UITransform)?.contentSize.height ??
+      POPOVER_HEIGHT;
+    this._syncScrollContent(panelHeight);
+  }
+
+  /** 标签行：图标在前、文字在后 */
+  private _renderTagRow(tags: ITagDisplayInfo[]): void {
+    const row = this._tagsRowNode;
+    if (!row) {
+      return;
+    }
+
+    row.active = tags.length > 0;
+    for (const sprite of this._tagIconPool) {
+      sprite.node.active = false;
+    }
+    for (const label of this._tagTextPool) {
+      label.node.active = false;
+    }
+    if (tags.length === 0) {
+      return;
+    }
+
+    const innerWidth = POPOVER_WIDTH - CONTENT_INSET * 2;
+    const iconSize = 20;
+    const iconTextGap = 4;
+    const tagGap = 10;
+    let cursorX = 0;
+    const rowHeight = 24;
+
+    for (let i = 0; i < tags.length; i++) {
+      const tag = tags[i];
+      const icon = this._acquireTagIcon(i);
+      const text = this._acquireTagText(i);
+      const iconNode = icon.node;
+      const textNode = text.node;
+
+      iconNode.active = true;
+      textNode.active = true;
+      iconNode.setPosition(cursorX + iconSize / 2, -rowHeight / 2, 0);
+      text.string = tag.label;
+      text.fontSize = 14;
+      text.lineHeight = 18;
+      text.color = new Color(189, 189, 189, 255);
+      text.updateRenderData(true);
+      const textWidth = textNode.getComponent(UITransform)?.contentSize.width ?? 40;
+      textNode.setPosition(cursorX + iconSize + iconTextGap, -rowHeight / 2, 0);
+      textNode.getComponent(UITransform)?.setAnchorPoint(0, 0.5);
+
+      const path = tag.iconPath;
+      loadSpriteFrame(path).then((sf) => {
+        if (icon.isValid && iconNode.active) {
+          applySpriteFrame(icon, sf);
+        }
+      });
+
+      cursorX += iconSize + iconTextGap + textWidth + tagGap;
+    }
+
+    row.getComponent(UITransform)?.setContentSize(
+      Math.min(innerWidth, Math.max(cursorX - tagGap, iconSize)),
+      rowHeight,
+    );
+  }
+
+  private _acquireTagIcon(index: number): Sprite {
+    while (this._tagIconPool.length <= index) {
+      const node = new Node(`TagIcon_${this._tagIconPool.length}`);
+      node.setParent(this._tagsRowNode!);
+      const ut = node.addComponent(UITransform);
+      ut.setContentSize(20, 20);
+      const sprite = node.addComponent(Sprite);
+      sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+      this._tagIconPool.push(sprite);
+    }
+    return this._tagIconPool[index];
+  }
+
+  private _acquireTagText(index: number): Label {
+    while (this._tagTextPool.length <= index) {
+      const node = new Node(`TagText_${this._tagTextPool.length}`);
+      node.setParent(this._tagsRowNode!);
+      node.addComponent(UITransform).setContentSize(80, 20);
+      const label = node.addComponent(Label);
+      label.horizontalAlign = Label.HorizontalAlign.LEFT;
+      label.verticalAlign = Label.VerticalAlign.CENTER;
+      label.overflow = Label.Overflow.NONE;
+      this._tagTextPool.push(label);
+    }
+    return this._tagTextPool[index];
+  }
+
+  private _measureLabelHeight(label: Label | null): number {
+    if (!label?.node.active) {
+      return 0;
+    }
+    label.updateRenderData(true);
+    return label.node.getComponent(UITransform)?.contentSize.height ?? label.lineHeight;
   }
 
   private _playOpenAnim(): void {
@@ -494,6 +596,75 @@ export class ItemDetailPopover extends Component {
       .to(0.2, { scale: new Vec3(1, 1, 1) }, { easing: 'quadOut' })
       .start();
     tween(opacity).to(0.2, { opacity: 255 }, { easing: 'quadOut' }).start();
+  }
+
+  /** §4.1：隐藏行不占位，避免战斗详情出现大块空行 */
+  private _reflowDetailRows(): void {
+    const topRows: Array<Label | null> = [
+      this.nameLabel,
+      this.rarityLabel,
+      this.starLabel,
+      this.modLabel,
+      this.cdLabel,
+      this.priceLabel,
+      this.sellPriceLabel,
+      this.affinityLabel,
+    ];
+    const bottomRows: Array<Label | null> = [
+      this.effectsLabel,
+      this.modEffectsLabel,
+      this.mergeHintLabel,
+      this.buildPreviewLabel,
+    ];
+
+    let y = -4;
+    const gap = 4;
+
+    const placeRow = (row: Label | null): void => {
+      const node = row?.node;
+      if (!node?.active) {
+        return;
+      }
+      const height = this._measureLabelHeight(row);
+      node.setPosition(0, y, 0);
+      y -= height + gap;
+    };
+
+    for (const row of topRows) {
+      placeRow(row);
+    }
+
+    if (this._tagsRowNode?.active) {
+      this._tagsRowNode.setPosition(0, y, 0);
+      const tagHeight =
+        this._tagsRowNode.getComponent(UITransform)?.contentSize.height ?? 24;
+      y -= tagHeight + gap;
+    }
+
+    for (const row of bottomRows) {
+      placeRow(row);
+    }
+
+    if (this.buildSynergyBtn?.node.active) {
+      this.buildSynergyBtn.node.setPosition(
+        (POPOVER_WIDTH - CONTENT_INSET * 2) / 2,
+        y - 8,
+        0,
+      );
+    }
+  }
+
+  private _colorFromHex(hex: string): Color {
+    const normalized = hex.replace('#', '').trim();
+    if (normalized.length < 6) {
+      return new Color(255, 235, 120, 255);
+    }
+    return new Color(
+      parseInt(normalized.slice(0, 2), 16),
+      parseInt(normalized.slice(2, 4), 16),
+      parseInt(normalized.slice(4, 6), 16),
+      255,
+    );
   }
 
   private _onBackdropTap(): void {
@@ -516,8 +687,18 @@ export class ItemDetailPopover extends Component {
       if (!transform) {
         continue;
       }
-      const bottom = child.position.y - transform.height;
+      const label = child.getComponent(Label);
+      if (label) {
+        label.updateRenderData(true);
+      }
+      const height = transform.contentSize.height;
+      const bottom = child.position.y - height;
       lowestY = Math.min(lowestY, bottom);
+    }
+
+    if (this.buildSynergyBtn?.node.active) {
+      const btnBottom = this.buildSynergyBtn.node.position.y - 16;
+      lowestY = Math.min(lowestY, btnBottom);
     }
 
     const innerWidth = POPOVER_WIDTH - CONTENT_INSET * 2;

@@ -120,8 +120,20 @@ export class ItemDisplayPresenter {
     const instance = ctx.instance ?? null;
     const star = resolveDisplayStar(instance, ctx.kind, ctx.codexStar);
     const maxStar = config.maxStar ?? 3;
+    const mergeHint =
+      ctx.kind === 'shop_for_sale' || ctx.kind === 'backpack'
+        ? mergeHintResolver.getMergeHint(ctx)
+        : NO_MERGE_HINT;
+    const showShopMerge =
+      ctx.kind === 'shop_for_sale' &&
+      ctx.sold !== true &&
+      mergeHint.canMerge;
     const nextStar =
-      star < maxStar && this._hasStarScaling(config) ? star + 1 : null;
+      showShopMerge &&
+      star < maxStar &&
+      this._hasStarScaling(config)
+        ? mergeHint.nextStar
+        : null;
 
     const equipped =
       ctx.runtime.equippedItems ??
@@ -138,10 +150,10 @@ export class ItemDisplayPresenter {
       runtime: ctx.runtime,
       equippedCount,
       enemyPoisonStacks: enemyStacks,
+      showStarPreview: showShopMerge,
     });
 
     const modEffects = this._buildModEffects(instance, ctx);
-    const mergeHint = mergeHintResolver.getMergeHint(ctx);
     const linkedNames = buildSynergyResolver.getLinkedItemNames(
       ctx,
       config.id,
@@ -162,6 +174,7 @@ export class ItemDisplayPresenter {
       rarity: config.rarity,
       rarityLabel: getRarityLabel(config.rarity),
       rarityFrameKey: getRarityFrameKey(config.rarity),
+      rarityColor: getRarityDisplayColor(config.rarity),
       star,
       maxStar,
       modNames: this._resolveModNames(instance, ctx),
@@ -170,7 +183,9 @@ export class ItemDisplayPresenter {
       sellPriceText: `${sellPrice} 金`,
       showPrice: ctx.kind === 'shop_for_sale',
       showSellPrice:
-        ctx.kind !== 'mod_badge' && ctx.kind !== 'mod_select',
+        ctx.kind === 'shop_for_sale' ||
+        ctx.kind === 'shop_equipped' ||
+        ctx.kind === 'backpack',
       affinityLabel: this._buildAffinityLabel(
         config,
         ctx.runtime.currentHeroId,
@@ -179,10 +194,10 @@ export class ItemDisplayPresenter {
       tags: getTagsDisplay(config.tags),
       effects,
       modEffects,
-      mergeHintText: mergeHint.canMerge
+      mergeHintText: showShopMerge
         ? `可升星至 ${mergeHint.nextStar} 星`
         : '',
-      showMergeHint: mergeHint.canMerge,
+      showMergeHint: showShopMerge,
       buildPreview: {
         linkedItemNames: linkedNames,
         isPreview,
@@ -309,6 +324,7 @@ function emptyDetail(configId: string): IItemDetailViewModel {
     rarity: 'common',
     rarityLabel: '',
     rarityFrameKey: getRarityFrameKey('common'),
+    rarityColor: getRarityDisplayColor('common'),
     star: 1,
     maxStar: 3,
     modNames: [],

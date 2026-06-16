@@ -68,6 +68,7 @@ export class ItemEffectDescriber {
 
     const description = this._buildDescription(input, effect, pair, nextPair);
     const showStarArrow =
+      input.showStarPreview === true &&
       nextPair !== null &&
       effect.starScale > 0 &&
       pair.formattedEffective !== nextPair.formattedEffective;
@@ -117,7 +118,13 @@ export class ItemEffectDescriber {
     let text = template;
 
     const placeholders: Record<string, string> = {
-      value: pair.formattedEffective,
+      value:
+        input.showStarPreview &&
+        nextPair &&
+        effect.starScale > 0 &&
+        pair.formattedEffective !== nextPair.formattedEffective
+          ? `${pair.formattedEffective} → ${nextPair.formattedEffective}`
+          : pair.formattedEffective,
       valueNext: nextPair?.formattedEffective ?? pair.formattedEffective,
       duration: formatDisplayNumber(effect.duration ?? effect.value),
       CD_MIN: formatDisplayNumber(GAME_CONSTANTS.CD_MIN),
@@ -126,10 +133,6 @@ export class ItemEffectDescriber {
 
     text = this._replacePercentPlaceholder(text, pair.effective);
     text = this._replacePlaceholders(text, placeholders);
-
-    if (showStarArrowInText(input, effect, pair, nextPair)) {
-      text = `${pair.formattedEffective} → ${nextPair!.formattedEffective}`;
-    }
 
     return text;
   }
@@ -233,18 +236,6 @@ export class ItemEffectDescriber {
     }
     return result;
   }
-}
-
-function showStarArrowInText(
-  input: IEffectDescribeInput,
-  effect: IItemEffect,
-  pair: ReturnType<typeof computeEffectValuePair>,
-  nextPair: ReturnType<typeof computeEffectValuePair> | null,
-): boolean {
-  if (!nextPair || effect.starScale <= 0) {
-    return false;
-  }
-  return pair.formattedEffective !== nextPair.formattedEffective;
 }
 
 function emptyLine(): IItemEffectLineViewModel {

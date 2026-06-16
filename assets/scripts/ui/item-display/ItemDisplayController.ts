@@ -354,7 +354,10 @@ export class ItemDisplayController extends Component {
       height: visible.height,
     };
 
-    this.detailPopover.show(detail, anchorRect, screenRect);
+    this.detailPopover.show(detail, anchorRect, screenRect, {
+      placementMode:
+        ctx.kind === 'battle_equipped' ? 'battle' : 'auto',
+    });
     this._applyDetailHighlights(ctx);
   }
 

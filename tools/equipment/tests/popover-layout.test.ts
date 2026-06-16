@@ -1,4 +1,5 @@
 import {
+  computeBattlePopoverLayout,
   computePopoverLayout,
   DEFAULT_POPOVER_HEIGHT,
   DEFAULT_POPOVER_WIDTH,
@@ -58,6 +59,17 @@ export const popoverLayoutSuite: TestSuite = {
     assert(
       bottomRow.maxHeight <= DEFAULT_POPOVER_HEIGHT,
       '必要时可缩小 maxHeight',
+    );
+
+    const battleLayout = computeBattlePopoverLayout(anchorBottom, screen);
+    assert(battleLayout.placement === 'top', '战斗界面浮层在卡片上方');
+    assert(
+      battleLayout.y - battleLayout.maxHeight >= anchorBottom.y + 20 - 1,
+      '浮层底边距卡片顶约 20px',
+    );
+    assert(
+      isPopoverWithinScreen(battleLayout, screen, DEFAULT_POPOVER_WIDTH),
+      '战斗浮层不超出屏幕',
     );
   },
 };

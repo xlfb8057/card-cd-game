@@ -118,6 +118,8 @@ export interface IItemDetailViewModel {
   rarity: string;
   rarityLabel: string;
   rarityFrameKey: string;
+  /** 品质色（详情名称染色） */
+  rarityColor: string;
   star: number;
   maxStar: number;
   modNames: string[];
@@ -182,4 +184,6 @@ export interface IEffectDescribeInput {
   runtime: ItemDisplayRuntime;
   equippedCount: number;
   enemyPoisonStacks: number;
+  /** 仅商店待购且本次购买会升星时为 true */
+  showStarPreview?: boolean;
 }
