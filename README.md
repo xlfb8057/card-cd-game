@@ -30,9 +30,13 @@ assets/
     └── later-assets/   后期资源分包（音效/特效占位）
 build-templates/wechatgame/   微信 game.json / project.config.json 模板
 tools/                        验证脚本、切图生成
-Doc-BUILD/                    构建检查清单
-Docs/                         阶段文档 + 装备前端实现进度
+Doc-BUILD/                    构建检查清单（git）
+Docs/                         策划 + 阶段文档（本地，已 gitignore）
+.cursorrules.md               AI 编程规范
+.cursor/rules/                Cursor alwaysApply 规则入口
 ```
+
+> **Cursor**：请直接打开 **`NewProject/`** 本目录作为工作区，以便加载 `.cursor/rules/`。
 
 ## 本地预览
 
@@ -59,7 +63,7 @@ npm run check:wechat-size
 
 ### 装备展示模块（v4）
 
-- **需求**：工作区 `Docs/技能/需求第四版/装备前端显示需求_v4.md`
+- **需求**：`Docs/技能/需求第四版/装备前端显示需求_v4.md`
 - **进度**：[`Docs/装备前端显示_实现进度_v4.md`](Docs/装备前端显示_实现进度_v4.md)
 - **生成占位切图**：`npm run gen:item-display`（输出至 `assets/resources/textures/`）
 - **离线验证**：`npm run verify:item-display`

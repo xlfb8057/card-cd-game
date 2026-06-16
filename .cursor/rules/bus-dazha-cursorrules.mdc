@@ -1,0 +1,21 @@
+---
+description: 大巴扎项目 AI 编程规范 — 每次会话必须遵循 .cursorrules.md
+alwaysApply: true
+---
+
+# 规范入口（强制）
+
+本仓库为 **Cocos Creator 3.8 + git** 唯一工程根目录。
+
+## 每次会话 / 切换大功能前
+
+1. **先读** `.cursorrules.md`（Session 0 项目地图、架构、测试先行、提交规范等均以该文件为准）。
+2. **禁止**未读规范就直接写代码；新功能必须先输出项目地图，等人确认后再动手。
+3. 策划 / 需求文档在 **`Docs/`**（已 gitignore，本地维护，不上传远程）。
+
+## 路径约定
+
+- 脚本：`assets/scripts/`
+- 配置：`assets/resources/config/`
+- 实现进度：`Docs/装备前端显示_实现进度_v4.md`
+- 装备 v4 需求：`Docs/技能/需求第四版/装备前端显示需求_v4.md`
